@@ -1,8 +1,11 @@
 # Tiny_ECC
 Lightweight C implementations of short error correcting codes
 
+
 Currently includes encoding for Reed-Solomon over GF(8) and GF(16).
+
 Decoding not yet implemented.
+
 May later add Binary Golay encoding and Decoding and Hamming if I ever get around to it.
 
 ## Reason for writing
