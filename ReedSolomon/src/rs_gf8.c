@@ -206,6 +206,9 @@ uint32_t gf8_rs_G_unpack(int8_t syms)
 uint32_t gf8_rs_encode(int32_t raw, uint32_t chk_poly, int8_t chk_sz)
 {
 	int8_t msg_sz = 0;
+	for(int8_t i = 1; i < raw; i << GF8_IDX_INC)
+		msg_sz += GF8_IDX_INC;
+	
 	uint32_t chk = gf8_poly_mod(raw, msg_sz, chk_poly, chk_sz);
 	raw <<= (chk_sz - GF8_IDX_INC);
 	return raw | chk;
