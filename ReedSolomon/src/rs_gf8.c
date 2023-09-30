@@ -92,11 +92,9 @@ uint32_t gf8_poly_scale(uint32_t p, int8_t x)
 	r1 = (x & 2) ? p : 0;
 	p <<= 1;
 	r2 = (x & 4) ? p : 0;
+	
 	of = (r1 & 011111111110) ^ (r2 & 033333333330);
-	r1 &= 006666666666;
-	r0 ^= r1;
-	r2 &= 004444444444;
-	r0 ^= r2;
+	r0 ^= (r1 & 006666666666) ^ (r2 & 004444444444);
 
 	return gf8_poly_reduce(r0, of);
 }
@@ -109,37 +107,21 @@ uint32_t gf8_poly_scale(uint32_t p, int8_t x)
 // may have to consider rearranging as interleaved high and low degree symbols if it results in faster ops
 uint32_t gf8_poly_mul(uint32_t p, uint32_t q)
 {
-	//TODO: check if splitting the terms in half makes the recombining faster
-	uint32_t r0, r1, r2, r3, r4, r5, r6, r7, r8, of;
-	r0 = (q & 1) ? p : 0;
-	r1 = (q & 2) * p;
-	r2 = (q & 4) * p;
-	r3 = (q & 8) * p;
-	r4 = (q & 16) * p;
-	r5 = (q & 32) * p;
-	r6 = (q & 64) * p;
-	r7 = (q & 128) * p;
-	r8 = (q & 256) * p;
+	uint32_t r0, r1, r2, of;
+	r0 = (q & 01) ? p : 0;
+	r1 = (q & 02) * p;
+	r2 = (q & 04) * p;
+
+	r0 ^= (q & 010) * p;
+	r1 ^= (q & 020) * p;
+	r2 ^= (q & 040) * p;
+
+	r0 ^= (q & 0100) * p;
+	r1 ^= (q & 0200) * p;
+	r2 ^= (q & 0400) * p;
+
 	of = (r1 & 011111111110) ^ (r2 & 033333333330);
-	of ^= (r3 & 011111111110) ^ (r4 & 033333333330);
-	of ^= (r5 & 011111111110) ^ (r6 & 033333333330);
-	of ^= (r7 & 011111111110) ^ (r8 & 033333333330);
-	r1 &= 006666666666;
-	r0 ^= r1;
-	r2 &= 004444444444;
-	r0 ^= r2;
-	r3 &= 006666666666;
-	r0 ^= r3;
-	r4 &= 004444444444;
-	r0 ^= r4;
-	r5 &= 006666666666;
-	r0 ^= r5;
-	r6 &= 004444444444;
-	r0 ^= r6;
-	r7 &= 006666666666;
-	r0 ^= r7;
-	r8 &= 004444444444;
-	r0 ^= r8;
+	r0 ^= (r1 & 006666666666) ^ (r2 & 004444444444);
 
 	return gf8_poly_reduce(r0, of);
 }
@@ -224,28 +206,7 @@ uint32_t gf8_rs_calc_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
 	}
 }
 
-/*	//maybe do this later but GF8 is small enough that I did it by hand and can include all of them in a small space
-//returns a generator polynomial for BCH view Reed Solomon with a given number of check symbols
-uint32_t gf8_rs_gen_poly(int8_t chk_syms) {}
-*/
-/*
-int8_t cl_div3_noLUT(int8_t x)
+uint32_t gf8_rs_find_errata_locator(uint32_t e_pos)
 {
-	while (x & 0xF8)
-	{
-		x ^= PRIME_GF8 << (28 - __builtin_clz(x));	//max of 3 bits shifted + 24 since builtin operates on uint32, not uint8
-	}
-	return x;
-}
 
-int8_t cl_mul3_noLUT(int8_t a, int8_t b)
-{
-	int8_t accum0, accum1, accum2;
-	accum0 = (b & 1) ? a : 0;
-	accum1 = (b & 2) ? a << 1 : 0;
-	accum2 = (b & 4) ? a << 2 : 0;
-	accum0 ^= accum1 ^ accum2;
-	//printf("acc: %i\n", accum0);
-	return 	cl_div3_noLUT(accum0);
 }
-*/
