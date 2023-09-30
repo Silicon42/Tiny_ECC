@@ -203,7 +203,7 @@ uint32_t gf8_rs_G_unpack(int8_t syms)
 //encodes a block of up to 18 bits worth of raw data as a Reed Solomon code word
 //infers message length from provided data, doesn't verify that data length fits with the intended number of check symbols
 //TODO: might be better to have the check polynomials easily indexable by check symbol count, consider rewriting for that
-uint32_t gf8_rs_encode(int32_t raw, uint32_t chk_poly, int8_t chk_sz)
+uint32_t gf8_rs_encode(uint32_t raw, uint32_t chk_poly, int8_t chk_sz)
 {
 	int8_t msg_sz = 0;
 	for(int8_t i = 1; i < raw; i << GF8_IDX_INC)
@@ -212,6 +212,16 @@ uint32_t gf8_rs_encode(int32_t raw, uint32_t chk_poly, int8_t chk_sz)
 	uint32_t chk = gf8_poly_mod(raw, msg_sz, chk_poly, chk_sz);
 	raw <<= (chk_sz - GF8_IDX_INC);
 	return raw | chk;
+}
+
+uint32_t gf8_rs_calc_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
+{
+	uint32_t Synd = 0;
+	for(--nsyms; nsyms > 0; --nsyms)
+	{
+		Synd << GF8_IDX_INC;
+		Synd |= gf8_poly_eval(p, p_sz, gf8_exp[nsyms]);
+	}
 }
 
 /*	//maybe do this later but GF8 is small enough that I did it by hand and can include all of them in a small space
