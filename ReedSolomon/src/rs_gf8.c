@@ -9,7 +9,7 @@
 #define GF8_IDX_INC			3	//how many bits to shift to move 1 symbol
 //#define BIT_PER_BYTE_MASK	0x0101010101010101
 
-const int8_t gf8_exp[] = {	// not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
+const int8_t gf8_exp[] = {	// length not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
 	1,2,4,3,6,7,5,
 	1,2,4,3,6,7,5
 };
@@ -92,7 +92,7 @@ uint32_t gf8_poly_scale(uint32_t p, int8_t x)
 	r1 = (x & 2) ? p : 0;
 	p <<= 1;
 	r2 = (x & 4) ? p : 0;
-	
+
 	of = (r1 & 011111111110) ^ (r2 & 033333333330);
 	r0 ^= (r1 & 006666666666) ^ (r2 & 004444444444);
 
@@ -133,10 +133,10 @@ uint32_t gf8_poly_mod(uint32_t p, int8_t p_sz, uint32_t q, int8_t q_sz)
 	//if p_sz and q_sz is known at compile time, this can be rewritten to be unrollable
 	p_sz -= GF8_IDX_INC;
 	q_sz -= GF8_IDX_INC;
-	//uncomment the following line to return the quotient and remainder in a single Poly8 with the start of the quotient at b_arr[q_sz - 2]
+	//uncomment the following line to return the quotient and remainder in a single return value with the start of the quotient at b_arr[q_sz - 2]
 	//q &= ~(-1 << q_sz); //clears the highest order term which should be a 1
-	p = p << (8*q_sz);
-	q = q << (8*p_sz);
+	p <<= q_sz;
+	q <<= p_sz;
 	for(int8_t i = p_sz + q_sz; i >= q_sz; i -= GF8_IDX_INC)
 	{
 		p ^= gf8_poly_scale(q, (p >> i) & 7);
@@ -153,7 +153,7 @@ int8_t gf8_poly_eval(uint32_t p, int8_t p_sz, int8_t x)
 	p_sz -= GF8_IDX_INC;
     int8_t y = p >> p_sz;
 	int8_t logx = gf8_log[x];
-    for(--p_sz; p_sz >= 0; p_sz -= GF8_IDX_INC)
+    for(p_sz -= GF8_IDX_INC; p_sz >= 0; p_sz -= GF8_IDX_INC)
         y = gf8_exp[gf8_log[y] + logx] ^ ((p >> p_sz) & 7);
 
     return y;
@@ -196,17 +196,43 @@ uint32_t gf8_rs_encode(uint32_t raw, uint32_t chk_poly, int8_t chk_sz)
 	return raw | chk;
 }
 
-uint32_t gf8_rs_calc_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
+uint32_t gf8_rs_get_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
 {
 	uint32_t Synd = 0;
 	for(--nsyms; nsyms > 0; --nsyms)
 	{
-		Synd << GF8_IDX_INC;
+		Synd <<= GF8_IDX_INC;
 		Synd |= gf8_poly_eval(p, p_sz, gf8_exp[nsyms]);
 	}
 }
 
-uint32_t gf8_rs_find_errata_locator(uint32_t e_pos)
+//e_pos is encoded such that a set bit indicates the corresponding degree term is erased or in error
+// might not be faster than listing indices but is a bit more transparent and since the field is small
+// should have relatively little impact.
+//TODO: verify this ^
+uint32_t gf8_rs_get_errata_locator(int8_t e_pos)
+{
+	uint32_t e_loc = 1;	//the errata locator polynomial
+	for(int8_t i = 0; i < 7; ++i)
+	{
+		if((e_pos >> i) & 1)
+		{
+			//faster equivalent of gf8_poly_mul() for a monic binomial
+			e_loc = (e_loc << GF8_IDX_INC) ^ gf8_poly_scale(e_loc, gf8_exp[i]);
+		}
+	}
+
+	return e_loc;
+}
+
+uint32_t gf8_rs_get_errata_evaluator(uint32_t synd, uint32_t e_loc, int8_t chk_sz)
+{
+	uint32_t e_eval = gf8_poly_mul(synd, e_loc);
+	return e_eval & ~(-1 << (chk_sz + GF8_IDX_INC));
+}
+
+//Forney algorithm
+uint32_t gf8_rs_correct_errata(uint32_t recv, uint32_t synd, int8_t e_pos)
 {
 
 }
