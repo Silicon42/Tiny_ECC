@@ -1,4 +1,4 @@
-#include "gf8.h"
+#include <stdint.h>
 
 //used to simplify memory allocation and vectorize some intstructions,
 // only works for GF(8) because symbol length is limited to 7

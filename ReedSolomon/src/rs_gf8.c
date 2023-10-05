@@ -1,8 +1,9 @@
 //BCH view, systematic encoding Reed Solomon using 3 bit symbols
 #include "rs_gf8.h"
+#include "gf8.h"
 
-#define OCTAL_MASK_A 		00707070707
-#define OCTAL_MASK_B 		07070707070
+//#define OCTAL_MASK_A 		00707070707
+//#define OCTAL_MASK_B 		07070707070
 //#define BIT_PER_BYTE_MASK	0x0101010101010101
 
 const uint32_t rs8_G_polys[] = {
@@ -26,7 +27,7 @@ uint32_t rs8_G_unpack(int8_t syms)
 	// indexing is done by shifting 3*n*(n-1)/2 where n is the number of check symbols
 	// and then shifting and masking 3 bits at a time for a count of n
 	uint64_t packed = 0576342223134775753321;
-	/*
+	
 	polynomial coefficients for 1 thru 6 symbols highest to lowest term order are as follows
 	          1,1	1 symbol
 	        1,3,2	2 symbols
@@ -47,7 +48,7 @@ uint32_t rs8_G_unpack(int8_t syms)
 uint32_t rs8_encode(uint32_t raw, uint32_t chk_poly, int8_t chk_sz)
 {
 	int8_t msg_sz = 0;
-	for(int8_t i = 1; i < raw; i << GF8_IDX_INC)
+	for(uint32_t i = 1; i < raw; i <<= GF8_IDX_INC)
 		msg_sz += GF8_IDX_INC;
 	
 	uint32_t chk = gf8_poly_mod(raw, msg_sz, chk_poly, chk_sz);
@@ -63,6 +64,8 @@ uint32_t rs8_get_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
 		Synd <<= GF8_IDX_INC;
 		Synd |= gf8_poly_eval(p, p_sz, gf8_exp[nsyms]);
 	}
+
+	return Synd;
 }
 
 //e_pos is encoded such that a set bit indicates the corresponding degree term is erased or in error
@@ -89,9 +92,9 @@ uint32_t rs8_get_errata_evaluator(uint32_t synd, uint32_t e_loc, int8_t chk_sz)
 	uint32_t e_eval = gf8_poly_mul(synd, e_loc);
 	return e_eval & ~(-1 << (chk_sz + GF8_IDX_INC));
 }
-
+/*
 //Forney algorithm
 uint32_t rs8_correct_errata(uint32_t recv, uint32_t synd, int8_t e_pos)
 {
 
-}
+}*/

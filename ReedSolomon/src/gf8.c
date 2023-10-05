@@ -1,8 +1,6 @@
 #include "gf8.h"
-
-#define PRIME_GF8 			0b1011	//the prime polynomial for GF(8), x^3 + x^1 + 1
-
-
+#include <stdio.h>  //TODO: remove this and the associated printf
+#define PRIME_GF8 0b1011	//the prime polynomial for GF(8), x^3 + x^1 + 1
 
 //simplified galois field multiply by 2 used for generating the Look Up Tables
 int8_t gf8_mul2_noLUT(int8_t x)
@@ -26,7 +24,7 @@ int8_t gf8_div(int8_t a, int8_t b)
 
 int8_t gf8_mul(int8_t a, int8_t b)
 {
-	if (a ==0 || b == 0)
+	if (a == 0 || b == 0)
 		return 0;
 	
 	return gf8_exp[gf8_log[a] + gf8_log[b]];

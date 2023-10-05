@@ -1,15 +1,16 @@
 #include "rs_gf8.h"
+#include "gf8.h"
 #include <stdio.h>
 
 int main()
 {
-    union Poly8 p, q, r;
-    p.ull = 0x010307;
-    q.ull = 0x305;
+    uint32_t p, q, r;
+    p = 0137;
+    q = 035;
 
     r = gf8_poly_mul(p, q);
 
-    printf("%llX", r.ull);
+    printf("%o\n", r);
 
    // r = gf8_rs_G_unpack(3);
 
