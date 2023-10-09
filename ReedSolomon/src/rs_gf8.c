@@ -6,6 +6,7 @@
 //#define OCTAL_MASK_B 		07070707070
 //#define BIT_PER_BYTE_MASK	0x0101010101010101
 
+
 const uint32_t rs8_G_polys[] = {
 	      01,	//0 symbols (dummy for indexing)
 	     011,	//1 symbol
@@ -38,7 +39,7 @@ uint32_t rs8_G_unpack(int8_t syms)
 	
 	int8_t chk_bits = syms * GF8_IDX_INC;
 	packed >>= chk_bits * (syms-1) / 2;
-	packed &= ~(-1 << chk_bits);
+	packed &= ~((uint32_t)-1 << chk_bits);
 	return packed | (1 << chk_bits);
 }
 */
@@ -58,14 +59,14 @@ uint32_t rs8_encode(uint32_t raw, uint32_t chk_poly, int8_t chk_sz)
 
 uint32_t rs8_get_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
 {
-	uint32_t Synd = 0;
-	for(--nsyms; nsyms > 0; --nsyms)
+	uint32_t s = 0;
+	for(--nsyms; nsyms >= 0; --nsyms)
 	{
-		Synd <<= GF8_IDX_INC;
-		Synd |= gf8_poly_eval(p, p_sz, gf8_exp[nsyms]);
+		s <<= GF8_IDX_INC;
+		s |= gf8_poly_eval(p, p_sz, gf8_exp[nsyms]);
 	}
 
-	return Synd;
+	return s;
 }
 
 //e_pos is encoded such that a set bit indicates the corresponding degree term is erased or in error
@@ -75,13 +76,14 @@ uint32_t rs8_get_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
 uint32_t rs8_get_errata_locator(int8_t e_pos)
 {
 	uint32_t e_loc = 1;	//the errata locator polynomial
-	for(int8_t i = 0; i < 7; ++i)
+	for(int8_t i = 7; i > 0; --i)	//decrementing from 7 results in the inverse index so we don't need to call gf8_inverse(i)
 	{
-		if((e_pos >> i) & 1)
+		if(e_pos & 1)
 		{
 			//faster equivalent of gf8_poly_mul() for a monic binomial
 			e_loc = (e_loc << GF8_IDX_INC) ^ gf8_poly_scale(e_loc, gf8_exp[i]);
 		}
+		e_pos >>= 1;
 	}
 
 	return e_loc;
@@ -90,8 +92,24 @@ uint32_t rs8_get_errata_locator(int8_t e_pos)
 uint32_t rs8_get_errata_evaluator(uint32_t synd, uint32_t e_loc, int8_t chk_sz)
 {
 	uint32_t e_eval = gf8_poly_mul(synd, e_loc);
-	return e_eval & ~(-1 << (chk_sz + GF8_IDX_INC));
+	return e_eval & ~((uint32_t)-1 << (chk_sz + GF8_IDX_INC));
 }
+
+uint32_t rs8_get_modified_syndromes(uint32_t synd, int8_t s_sz, uint32_t e_loc, int8_t e_sz)
+{
+	e_sz -= GF8_IDX_INC;
+	//FIXME: under extreme conditions (check symbols + e_loc size -1 > 10), this can overflow
+	// this can only happen at 6 check symbols so either a specialized version of poly_mul needs to be
+	// made for here or we need strict limits on the number of errasures and errors that we attempt to correct
+	// or simply don't support 6 check symbols since that would only leave 8 codewords
+
+	// might be fine as it is though since it seems the terms we want are in the low end anyway
+
+	uint32_t mod_synd = gf8_poly_mul(synd, e_loc) >> e_sz;
+	mod_synd &= ~((uint32_t)-1 << (s_sz - e_sz));
+	return mod_synd | (synd & ((uint32_t)-1 << e_sz));
+}
+
 /*
 //Forney algorithm
 uint32_t rs8_correct_errata(uint32_t recv, uint32_t synd, int8_t e_pos)
