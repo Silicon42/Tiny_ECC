@@ -32,4 +32,6 @@ int8_t gf8_poly_eval(uint32_t p, int8_t p_sz, int8_t x);
 
 uint32_t gf8_poly_mod(uint32_t p, int8_t p_sz, uint32_t q, int8_t q_sz);
 
+uint32_t gf8_poly_formal_derivative(uint32_t p);
+
 #endif  //GF8_H

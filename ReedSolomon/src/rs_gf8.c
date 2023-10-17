@@ -9,15 +9,13 @@
 
 const uint32_t rs8_G_polys[] = {
 	      01,	//0 symbols (dummy for indexing)
-	     011,	//1 symbol
-	    0132,	//2 symbols
-	   01753,	//3 symbols
-	  014775,	//4 symbols
-	 0122313,	//5 symbols
-	01576342	//6 symbols (identical to entries 1 thru 7 of the exponent table)
+	     012,	//1 symbol	First Consectutive Root, aka fcr aka c = 1
+	    0163,	//2 symbols
+	   01525,	//3 symbols
+	  013123,	//4 symbols
+	 0143562,	//5 symbols
+	01111111	//6 symbols
 };
-
-
 
 /*
 //returns a generator polynomial for BCH view Reed Solomon with a given number of check symbols
@@ -49,7 +47,7 @@ uint32_t rs8_G_unpack(int8_t syms)
 uint32_t rs8_encode(uint32_t raw, uint32_t chk_poly, int8_t chk_sz)
 {
 	int8_t msg_sz = 0;
-	for(uint32_t i = 1; i < raw; i <<= GF8_IDX_INC)
+	for(uint32_t i = 1; i <= raw; i <<= GF8_IDX_INC)
 		msg_sz += GF8_IDX_INC;
 	
 	uint32_t chk = gf8_poly_mod(raw, msg_sz, chk_poly, chk_sz);
@@ -59,9 +57,9 @@ uint32_t rs8_encode(uint32_t raw, uint32_t chk_poly, int8_t chk_sz)
 
 uint32_t rs8_get_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
 {
-	uint32_t s = 0;
-	for(--nsyms; nsyms >= 0; --nsyms)
-	{
+	uint32_t s = 0;	//accumulate syndromes in s
+	for(; nsyms > 0; --nsyms)	//accumulation done in descending index order
+	{	//which syndromes are used is effected by fcr so if you change that it must be changed here too
 		s <<= GF8_IDX_INC;
 		s |= gf8_poly_eval(p, p_sz, gf8_exp[nsyms]);
 	}
@@ -76,12 +74,13 @@ uint32_t rs8_get_syndromes(uint32_t p, int8_t p_sz, int8_t nsyms)
 uint32_t rs8_get_errata_locator(int8_t e_pos)
 {
 	uint32_t e_loc = 1;	//the errata locator polynomial
-	for(int8_t i = 7; i > 0; --i)	//decrementing from 7 results in the inverse index so we don't need to call gf8_inverse(i)
+	for(int8_t i = 0; i < 7; ++i)
 	{
 		if(e_pos & 1)
 		{
-			//faster equivalent of gf8_poly_mul() for a monic binomial
-			e_loc = (e_loc << GF8_IDX_INC) ^ gf8_poly_scale(e_loc, gf8_exp[i]);
+			//faster equivalent of gf8_poly_mul() for a monic binomial in the form (ax - 1)
+			//using this form of the roots simplifies later calculations since we know term 0 is a 1
+			e_loc ^= gf8_poly_scale(e_loc, gf8_exp[i]) << GF8_IDX_INC;
 		}
 		e_pos >>= 1;
 	}
@@ -89,29 +88,61 @@ uint32_t rs8_get_errata_locator(int8_t e_pos)
 	return e_loc;
 }
 
-uint32_t rs8_get_errata_evaluator(uint32_t synd, uint32_t e_loc, int8_t chk_sz)
+uint32_t rs8_get_errata_evaluator(uint32_t synd, int8_t chk_sz, uint32_t e_loc)
 {
-	uint32_t e_eval = gf8_poly_mul(synd, e_loc);
-	return e_eval & ~((uint32_t)-1 << (chk_sz + GF8_IDX_INC));
+	uint32_t e_eval;
+	//TODO: this can be optimized since term 0 of e_loc is always 1 and no more than 5 terms beyond that are needed
+	e_eval = gf8_poly_mul(synd, e_loc);
+	return e_eval & ~((uint32_t)-1 << chk_sz);	//mask to the appropriate size
 }
-
-uint32_t rs8_get_modified_syndromes(uint32_t synd, int8_t s_sz, uint32_t e_loc, int8_t e_sz)
+/*
+uint32_t rs8_get_forney_syndromes(uint32_t synd, int8_t chk_sz, uint32_t e_loc, int8_t e_sz)
 {
 	e_sz -= GF8_IDX_INC;
-	//FIXME: under extreme conditions (check symbols + e_loc size -1 > 10), this can overflow
-	// this can only happen at 6 check symbols so either a specialized version of poly_mul needs to be
-	// made for here or we need strict limits on the number of errasures and errors that we attempt to correct
-	// or simply don't support 6 check symbols since that would only leave 8 codewords
 
-	// might be fine as it is though since it seems the terms we want are in the low end anyway
-
-	uint32_t mod_synd = gf8_poly_mul(synd, e_loc) >> e_sz;
-	mod_synd &= ~((uint32_t)-1 << (s_sz - e_sz));
-	return mod_synd | (synd & ((uint32_t)-1 << e_sz));
+	uint32_t fsynd = gf8_poly_mul(synd, e_loc);// >> e_sz;	//shift down by # of erasures worth of symbols
+	uint32_t mask = (uint32_t)-1 << (chk_sz);// - e_sz);	//mask to keep the (# of check symbols - erasures) worth of symbols
+	fsynd &= ~mask;
+	return fsynd;// | (synd & mask);
 }
-
-/*
+*/
 //Forney algorithm
+uint32_t rs8_get_errata_magnitude(uint32_t synd, int8_t chk_sz, uint32_t e_loc, int8_t e_pos)
+{
+/*
+	error value e(i) = -(X(i)^(1-c) * omega(X(i)^-1)) / (lambda'(X(i)^-1))
+	where X(i)^-1 is the roots of the error locator, omega(X) is the error evaluator,
+	lambda'(X) is the formal derivative of the error locator, and c is the 1st
+	consecutive root of the generator used in the encoding, which in this case is always
+	1 such that the X(i)^(1-c) simplifies out to 1
+
+	e_eval = synd * e_loc
+*/
+	uint32_t e_eval, e_loc_prime, e_mag;
+	int8_t root, ee_res, lp_res;
+
+	e_eval = rs8_get_errata_evaluator(synd, chk_sz, e_loc);
+
+	e_loc_prime = gf8_poly_formal_derivative(e_loc);
+
+	e_mag = 0;
+	for(int8_t i = 1; i < 8; ++i)
+	{
+		e_mag <<= GF8_IDX_INC;
+		e_pos <<= 1;
+
+		if(e_pos & 128)
+		{
+			root = gf8_exp[i];
+			ee_res = gf8_poly_eval(e_eval, chk_sz, root);
+			lp_res = gf8_poly_eval(e_loc_prime, chk_sz, root);	//chk_sz is guaranteed to be at least as big as e_loc_prime's actual size
+			e_mag |= gf8_div(ee_res, lp_res);
+		}
+	}
+
+	return e_mag;
+}
+/*
 uint32_t rs8_correct_errata(uint32_t recv, uint32_t synd, int8_t e_pos)
 {
 

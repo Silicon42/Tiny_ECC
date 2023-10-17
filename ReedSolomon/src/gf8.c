@@ -7,6 +7,8 @@
 #define GF8_R2_OF 033333333330
 #define GF8_R1_R0 006666666666
 #define GF8_R2_R0 004444444444
+//mask to isolate just the odd terms for the formal derivative
+#define GF8_ODD   007070707070
 
 const int8_t gf8_exp[14] = {	// length not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
 	1,2,4,3,6,7,5,
@@ -51,16 +53,15 @@ int8_t gf8_pow(int8_t x, int8_t power)
 }
 
 // slight optimization since most calls use x = 2 which evaluates to 1
+// power is assumed to be in the range of 0 to 13
 int8_t gf8_2pow(int8_t power)
-{	//TODO: check if it still needs the modulo for this special use case
-	if (power >= 14)
-		printf("required\n");
-	return gf8_exp[power % 14];
+{
+	return gf8_exp[power];
 }
 
 int8_t gf8_inverse(int8_t x)
 {
-	return gf8_exp[15 - gf8_log[x]];
+	return gf8_exp[7 - gf8_log[x]];
 }
 
 //prior to reduction, term can extend up to 2 bits above symbol due to shifting
@@ -117,6 +118,10 @@ uint32_t gf8_poly_mul(uint32_t p, uint32_t q)
 	r1 ^= (q & 020000) * p;
 	r2 ^= (q & 040000) * p;
 
+	r0 ^= (q & 0100000) * p;
+	r1 ^= (q & 0200000) * p;
+	r2 ^= (q & 0400000) * p;
+
 	of  = (r1 & GF8_R1_OF) ^ (r2 & GF8_R2_OF);
 	r0 ^= (r1 & GF8_R1_R0) ^ (r2 & GF8_R2_R0);
 
@@ -151,7 +156,17 @@ int8_t gf8_poly_eval(uint32_t p, int8_t p_sz, int8_t x)
     int8_t y = p >> p_sz;
 	int8_t logx = gf8_log[x];
     for(p_sz -= GF8_IDX_INC; p_sz >= 0; p_sz -= GF8_IDX_INC)
-        y = gf8_exp[gf8_log[y] + logx] ^ ((p >> p_sz) & 7);
-
+    {
+        if(y)
+            y = gf8_exp[gf8_log[y] + logx];
+        
+        y ^= ((p >> p_sz) & 7);
+    }
     return y;
+}
+
+//formal derivative of characteristic 2 keeps only the odd polynomials and reduces the degree by 1 step
+uint32_t gf8_poly_formal_derivative(uint32_t p)
+{
+    return (p & GF8_ODD) >> GF8_IDX_INC;
 }
