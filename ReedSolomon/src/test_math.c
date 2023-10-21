@@ -80,14 +80,26 @@ int main()
     synd = rs8_get_syndromes(00030013, 21, 4);  //also tests that longer than true p_sz works
     printf("%o\n", synd);  //result 2210
 
-    e_loc = rs8_get_errata_locator(0b01100000);
+    e_loc = rs8_get_erasure_locator(0b01100000);
     printf("%o\n", e_loc);  //result 0010
-
-    //m_synd = rs8_get_forney_syndromes(synd, 21, e_loc, 18);
-    //printf("%o\n", m_synd);  //result 611500
 
     r = rs8_get_errata_magnitude(synd, 12, e_loc, 0b01100000);
     printf("%o\n", r);  //result 1200000
+
+    e_loc = rs8_get_error_locator(synd, 12);
+    printf("%o\n", e_loc);  //result 
+
+    uint32_t e_eval = rs8_get_errata_evaluator(synd, 12, e_loc);
+    printf("%o\n", e_eval);  //result 
+
+    int8_t e_pos = rs8_get_error_pos(e_loc, 0);
+    printf("%o\n", e_pos);  //result 
+
+    r = rs8_get_errata_magnitude(e_eval, 12, e_loc, e_pos);
+    printf("%o\n", r);  //result 1200000
+
+    r = rs8_decode(01230013, 12, 4, 0);
+    printf("%o\n", r);  //result 1230013
     
     return 0;
 }

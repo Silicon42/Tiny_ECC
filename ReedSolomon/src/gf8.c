@@ -19,6 +19,9 @@ const int8_t gf8_log[8] = {	// log_0 undefined so dummy 0xF8 included to simplif
 	0xF8,0,1,3,2,6,4,5
 };
 
+int8_t gf8_idx_inc(gf8_idx i) {return i + GF8_SYM_SZ;}
+int8_t gf8_idx_dec(gf8_idx i) {return i - GF8_SYM_SZ;}
+
 //simplified galois field multiply by 2 used for generating the Look Up Tables
 int8_t gf8_mul2_noLUT(int8_t x)
 {
@@ -130,16 +133,16 @@ uint32_t gf8_poly_mul(uint32_t p, uint32_t q)
 
 //p is dividend, q is divisor, p_sz and q_sz are size in BITS not symbols
 //returns remainder of the division since the quotient is never used
-uint32_t gf8_poly_mod(uint32_t p, int8_t p_sz, uint32_t q, int8_t q_sz)
+uint32_t gf8_poly_mod(uint32_t p, gf8_idx p_sz, uint32_t q, gf8_idx q_sz)
 {
 	//if p_sz and q_sz is known at compile time, this can be rewritten to be unrollable
-	p_sz -= GF8_IDX_INC;
-	q_sz -= GF8_IDX_INC;
+	p_sz = gf8_idx_dec(p_sz);
+	q_sz = gf8_idx_dec(q_sz);
 	//uncomment the following line to return the quotient and remainder in a single return value with the start of the quotient at b_arr[q_sz - 2]
 	//q &= ~((uint32_t)-1 << q_sz); //clears the highest order term which should be a 1
 	p <<= q_sz;
 	q <<= p_sz;
-	for(int8_t i = p_sz + q_sz; i >= q_sz; i -= GF8_IDX_INC)
+	for(gf8_idx i = p_sz + q_sz; i >= q_sz; i = gf8_idx_dec(i))
 	{
 		p ^= gf8_poly_scale(q, (p >> i) & 7);
 		q >>= 3;
@@ -150,12 +153,12 @@ uint32_t gf8_poly_mod(uint32_t p, int8_t p_sz, uint32_t q, int8_t q_sz)
 
 //optimized version of div for binomial divisor/single eval point
 //TODO: check if this is actually more efficient at this size
-int8_t gf8_poly_eval(uint32_t p, int8_t p_sz, int8_t x)
+int8_t gf8_poly_eval(uint32_t p, gf8_idx p_sz, int8_t x)
 {
-	p_sz -= GF8_IDX_INC;
+	p_sz = gf8_idx_dec(p_sz);
     int8_t y = p >> p_sz;
 	int8_t logx = gf8_log[x];
-    for(p_sz -= GF8_IDX_INC; p_sz >= 0; p_sz -= GF8_IDX_INC)
+    for(p_sz = gf8_idx_dec(p_sz); p_sz >= 0; p_sz = gf8_idx_dec(p_sz))
     {
         if(y)
             y = gf8_exp[gf8_log[y] + logx];
@@ -168,5 +171,14 @@ int8_t gf8_poly_eval(uint32_t p, int8_t p_sz, int8_t x)
 //formal derivative of characteristic 2 keeps only the odd polynomials and reduces the degree by 1 step
 uint32_t gf8_poly_formal_derivative(uint32_t p)
 {
-    return (p & GF8_ODD) >> GF8_IDX_INC;
+    return (p & GF8_ODD) >> GF8_SYM_SZ;
+}
+
+int8_t gf8_poly_get_order(uint32_t p)
+{
+    int8_t n = -1;
+    for(uint32_t i = 1; i <= p; i <<= GF8_SYM_SZ)
+        ++n;
+
+    return n;
 }
