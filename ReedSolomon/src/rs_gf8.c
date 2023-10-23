@@ -150,19 +150,19 @@ uint32_t rs8_get_error_locator(uint32_t synd, gf8_idx s_sz)
 	for(gf8_idx n = 0; n < s_sz; n = gf8_idx_inc(n))
 	{
 		disc = (synd >> n) & 7;	//term 0 of the following pairwise product
-		for(gf8_idx i = GF8_SYM_SZ; i < err_cnt; i = gf8_idx_inc(i))
+		for(gf8_idx i = GF8_SYM_SZ; i <= err_cnt; i = gf8_idx_inc(i))
 		{	//TODO: consider adding a pairwise product function to gf8.c
 			disc ^= gf8_mul((err_loc >> i) & 7, (synd >> (n - i)) & 7);
 		}
 
 		if(disc)
 		{
-			//this is only okay to have here because we're dealing with small fields,
-			// so we can make use of automatic register renaming,
+			//this is only okay to have here because we're dealing with small fields, so we can make
+			// use of automatic register renaming to not incur any significant extra cost from copying,
 			// otherwise you would need the else block to avoid the copy as in the Wikipedia article
 			err_loc_temp = err_loc;
-
 			err_loc ^= (gf8_poly_scale(err_loc_last, gf8_div(disc, disc_last)) << delay);
+
 			if(2 * err_cnt <= n)
 			{
 				err_loc_last = err_loc_temp;
@@ -177,18 +177,22 @@ uint32_t rs8_get_error_locator(uint32_t synd, gf8_idx s_sz)
 	return err_loc;
 }
 
-int8_t rs8_get_error_pos(uint32_t error_loc, int8_t erase_pos)
+//mask_pos has set bits for the valid (ie received) message terms and lets us skip the erasures and
+// otherwise non-transmitted terms such as fixed padding or less than maximal message length
+int8_t rs8_get_error_pos(uint32_t error_loc, int8_t mask_pos)
 {
 	int8_t error_pos = 0;
-	int8_t bit = 1;
-	erase_pos = ~erase_pos;	//simplifies the conditional experession
 
-	for(int8_t i = 7; i > 0; --i)
+	for(int8_t i = 1; i <= 7; ++i)
 	{
-		if(erase_pos & bit)	//skips erasure positions, not strictly required but 
-			error_pos |= gf8_poly_eval(error_loc, 21, i) ? 0 : bit;	//TODO: see if size calculation of error_loc would improve this over just taking the max size
+		error_pos <<= 1;
+		mask_pos <<= 1;
+		if(mask_pos & 0b10000000)	//skips non-received symbols, not strictly required but potentially beneficial since poly eval is relatively expensive
+			error_pos |= !gf8_poly_eval(error_loc, 21, gf8_exp[i]);	//for non-C coders, this means that when it evaluates to 0 we get back a True which is equivalent to 1
+		//if(erase_pos & bit)	//skips erasure positions, not strictly required but potentially beneficial since poly eval is relatively expensive
+		//	error_pos |= gf8_poly_eval(error_loc, 21, gf8_exp[i]) ? 0 : bit;	//TODO: see if size calculation of error_loc would improve this over just taking the max size
 			//^ marks the position of an error at a given bit index if the inverse of the index evaluates to 0
-		bit <<= 1;
+		//bit <<= 1;
 	}
 
 	return error_pos;
@@ -217,6 +221,8 @@ uint32_t rs8_decode(uint32_t recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_pos)
 		e_loc = rs8_get_erasure_locator(e_pos);
 		synd = rs8_get_errata_evaluator(synd, chk_sz, e_loc);
 	}
+	else
+		e_loc = 1;
 
 	if(synd != 0)	//errors remaining
 	{
@@ -224,12 +230,14 @@ uint32_t rs8_decode(uint32_t recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_pos)
 		int8_t err_loc_order = gf8_poly_get_order(err_loc);
 		if(2*err_loc_order > chk_syms - erase_cnt)	//check that the number of errors isn't beyond the Singleton Bound
 			return -2;	//TODO: more diagnostic information should be encoded here and below
-		int8_t err_pos = rs8_get_error_pos(err_loc, e_pos);
+		int8_t err_pos = rs8_get_error_pos(err_loc, ~e_pos);
 		int8_t err_cnt = __builtin_popcount(err_pos);
 		if(err_cnt != err_loc_order)
 			return -3;	//not enough or too many roots
+		
+		e_pos |= err_pos;
 		e_loc = gf8_poly_mul(e_loc, err_loc);
-		e_eval = rs8_get_errata_evaluator(synd, chk_sz, err_loc);
+		e_eval = rs8_get_errata_evaluator(synd, chk_sz, e_loc);
 		
 	}
 	
