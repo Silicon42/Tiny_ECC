@@ -66,38 +66,38 @@ uint32_t rs8_get_syndromes(uint32_t p, gf8_idx p_sz, int8_t nsyms)
 	return s;
 }
 
-//e_pos is encoded such that a set bit indicates the corresponding degree term is erased or in error
+//erase_pos is encoded such that a set bit indicates the corresponding degree term is erased or in error
 // might not be faster than listing indices but is a bit more transparent and since the field is small
 // should have relatively little impact.
 //TODO: verify this ^
-uint32_t rs8_get_erasure_locator(int8_t e_pos)
+uint32_t rs8_get_erasure_locator(int8_t erase_pos)
 {
-	uint32_t e_loc = 1;	//the errata locator polynomial
+	uint32_t erase_loc = 1;	//the errata locator polynomial
 	for(int8_t i = 0; i < 7; ++i)
 	{
-		if(e_pos & 1)
+		if(erase_pos & 1)
 		{
 			//faster equivalent of gf8_poly_mul() for a monic binomial in the form (ax - 1)
 			//using this form of the roots simplifies later calculations since we know term 0 is a 1
-			e_loc ^= gf8_poly_scale(e_loc, gf8_exp[i]) << GF8_SYM_SZ;
+			erase_loc ^= gf8_poly_scale(erase_loc, gf8_exp[i]) << GF8_SYM_SZ;
 		}
-		e_pos >>= 1;
+		erase_pos >>= 1;
 	}
 
-	return e_loc;
+	return erase_loc;
 }
 
 //this can also be used to get the Forney Syndromes
-uint32_t rs8_get_errata_evaluator(uint32_t synd, gf8_idx chk_sz, uint32_t e_loc)
+uint32_t rs8_get_errata_evaluator(uint32_t synd, gf8_idx chk_sz, uint32_t errata_loc)
 {
-	uint32_t e_eval;
-	//TODO: this can be optimized since term 0 of e_loc is always 1 and no more than 5 terms beyond that are needed
-	e_eval = gf8_poly_mul(synd, e_loc);
-	return e_eval & ~((uint32_t)-1 << chk_sz);	//mask to the appropriate size
+	uint32_t errata_eval;
+	//TODO: this can be optimized since term 0 of errata_loc is always 1 and no more than 5 terms beyond that are needed
+	errata_eval = gf8_poly_mul(synd, errata_loc);
+	return errata_eval & ~((uint32_t)-1 << chk_sz);	//mask to the appropriate size
 }
 
 //Forney algorithm
-uint32_t rs8_get_errata_magnitude(uint32_t e_eval, gf8_idx chk_sz, uint32_t e_loc, int8_t e_pos)
+uint32_t rs8_get_errata_magnitude(uint32_t errata_eval, gf8_idx chk_sz, uint32_t errata_loc, int8_t errata_pos)
 {
 /*
 	error value e(i) = -(X(i)^(1-c) * omega(X(i)^-1)) / (lambda'(X(i)^-1))
@@ -106,43 +106,43 @@ uint32_t rs8_get_errata_magnitude(uint32_t e_eval, gf8_idx chk_sz, uint32_t e_lo
 	consecutive root of the generator used in the encoding, which in this case is always
 	1 such that the X(i)^(1-c) simplifies out to 1
 
-	e_eval = synd * e_loc
+	errata_eval = synd * errata_loc
 */
-	uint32_t e_loc_prime, e_mag;
+	uint32_t errata_loc_prime, errata_mag;
 	int8_t root, ee_res, lp_res;
 
-	e_loc_prime = gf8_poly_formal_derivative(e_loc);
+	errata_loc_prime = gf8_poly_formal_derivative(errata_loc);
 
-	e_mag = 0;
+	errata_mag = 0;
 	for(int8_t i = 1; i < 8; ++i)
 	{
-		e_mag <<= GF8_SYM_SZ;
-		e_pos <<= 1;
+		errata_mag <<= GF8_SYM_SZ;
+		errata_pos <<= 1;
 
-		if(e_pos & 128)
+		if(errata_pos & 128)
 		{
 			root = gf8_exp[i];
-			ee_res = gf8_poly_eval(e_eval, chk_sz, root);
-			lp_res = gf8_poly_eval(e_loc_prime, chk_sz, root);	//chk_sz is guaranteed to be at least as big as e_loc_prime's actual size
-			e_mag |= gf8_div(ee_res, lp_res);	//TODO: if converting to position list form, consider adding a pairwise divide function to gf8.c
+			ee_res = gf8_poly_eval(errata_eval, chk_sz, root);
+			lp_res = gf8_poly_eval(errata_loc_prime, chk_sz, root);	//chk_sz is guaranteed to be at least as big as errata_loc_prime's actual size
+			errata_mag |= gf8_div(ee_res, lp_res);	//TODO: if converting to position list form, consider adding a pairwise divide function to gf8.c
 		}
 	}
 
-	return e_mag;
+	return errata_mag;
 }
 
 //synd_rem is the number of remaining syndromes, ie # check symbols - # erasures, aka N on Wikipedia
 uint32_t rs8_get_error_locator(uint32_t synd, gf8_idx s_sz)
 {
-	uint32_t err_loc, err_loc_last, err_loc_temp;
+	uint32_t error_loc, error_loc_last, error_loc_temp;
 	int8_t disc, disc_last;
-	gf8_idx delay, err_cnt;
+	gf8_idx delay, error_sz;
 
-	err_loc = 1;		//aka C(x)
-	err_loc_last = 1;	//aka B(x)
-	//err_loc_temp;		//aka T(x)
+	error_loc = 1;		//aka C(x)
+	error_loc_last = 1;	//aka B(x)
+	//error_loc_temp;	//aka T(x)
 	//s_sz;				//aka N		(* GF8_SYM_SZ so it's in bits)
-	err_cnt = 0;		//aka L		(* GF8_SYM_SZ so it's in bits due to being involved in calculations with n)
+	error_sz = 0;		//aka L		(* GF8_SYM_SZ so it's in bits due to being involved in calculations with n)
 	delay = GF8_SYM_SZ;	//aka m		(* GF8_SYM_SZ so it's in bits)
 	disc_last = 1;		//aka b
 	//disc;				//aka d
@@ -150,9 +150,9 @@ uint32_t rs8_get_error_locator(uint32_t synd, gf8_idx s_sz)
 	for(gf8_idx n = 0; n < s_sz; n = gf8_idx_inc(n))
 	{
 		disc = (synd >> n) & 7;	//term 0 of the following pairwise product
-		for(gf8_idx i = GF8_SYM_SZ; i <= err_cnt; i = gf8_idx_inc(i))
+		for(gf8_idx i = GF8_SYM_SZ; i <= error_sz; i = gf8_idx_inc(i))
 		{	//TODO: consider adding a pairwise product function to gf8.c
-			disc ^= gf8_mul((err_loc >> i) & 7, (synd >> (n - i)) & 7);
+			disc ^= gf8_mul((error_loc >> i) & 7, (synd >> (n - i)) & 7);
 		}
 
 		if(disc)
@@ -160,13 +160,13 @@ uint32_t rs8_get_error_locator(uint32_t synd, gf8_idx s_sz)
 			//this is only okay to have here because we're dealing with small fields, so we can make
 			// use of automatic register renaming to not incur any significant extra cost from copying,
 			// otherwise you would need the else block to avoid the copy as in the Wikipedia article
-			err_loc_temp = err_loc;
-			err_loc ^= (gf8_poly_scale(err_loc_last, gf8_div(disc, disc_last)) << delay);
+			error_loc_temp = error_loc;
+			error_loc ^= (gf8_poly_scale(error_loc_last, gf8_div(disc, disc_last)) << delay);
 
-			if(2 * err_cnt <= n)
+			if(2 * error_sz <= n)
 			{
-				err_loc_last = err_loc_temp;
-				err_cnt = gf8_idx_inc(n) - err_cnt;
+				error_loc_last = error_loc_temp;
+				error_sz = gf8_idx_inc(n) - error_sz;
 				disc_last = disc;
 				delay = 0;	//doesn't make sense to reset to 1 term of delay and continue since there's only 1 instruction before the end of the loop anyway
 			}
@@ -174,7 +174,7 @@ uint32_t rs8_get_error_locator(uint32_t synd, gf8_idx s_sz)
 		delay = gf8_idx_inc(delay);
 	}
 
-	return err_loc;
+	return error_loc;
 }
 
 //mask_pos has set bits for the valid (ie received) message terms and lets us skip the erasures and
@@ -201,13 +201,15 @@ int8_t rs8_get_error_pos(uint32_t error_loc, int8_t mask_pos)
 //intended r_sz of the received message must be specified b/c leading (ie high order) 0 terms are functionally the
 // same as having a lower degree limit, however r_sz is used to determine valid error positions which can't occur
 // in non-transmitted 0 padding, ie if 5 3-bit terms were transmitted
-uint32_t rs8_decode(uint32_t recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_pos)
+//tx_pos inludes set bits for only the valid positions for errors to occur, ie not in untransmitted padding symbols
+uint32_t rs8_decode(uint32_t recv, gf8_idx r_sz, int8_t chk_syms, int8_t erase_pos, int8_t tx_pos)
 {
-	int8_t erase_cnt = __builtin_popcount(e_pos);
+	int8_t erase_cnt = __builtin_popcount(erase_pos);
 	if(erase_cnt > chk_syms)	//if the number of erasures is greater than the number of check symbols,
 		return -1;	// it's already beyond the Singleton Bound and can't be uniquely decoded so we return and flag an error
 
-	uint32_t synd, e_loc, e_eval;
+	uint32_t synd, erase_loc, errata_loc, errata_eval;
+	int8_t errata_pos;
 
 	synd = rs8_get_syndromes(recv, r_sz, chk_syms);
 
@@ -216,30 +218,30 @@ uint32_t rs8_decode(uint32_t recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_pos)
 
 	gf8_idx chk_sz = chk_syms*GF8_SYM_SZ;
 
-	if(e_pos)
+	if(erase_pos)
 	{
-		e_loc = rs8_get_erasure_locator(e_pos);
-		synd = rs8_get_errata_evaluator(synd, chk_sz, e_loc);
+		erase_loc = rs8_get_erasure_locator(erase_pos);
+		synd = rs8_get_errata_evaluator(synd, chk_sz, erase_loc);
 	}
 	else
-		e_loc = 1;
+		erase_loc = 1;
 
-	if(synd != 0)	//errors remaining
+//	if(synd != 0)	//errors remaining
 	{
-		uint32_t err_loc = rs8_get_error_locator(synd, chk_sz);	//FIXME: this should not be chk_sz but for testing it will do
-		int8_t err_loc_order = gf8_poly_get_order(err_loc);
-		if(2*err_loc_order > chk_syms - erase_cnt)	//check that the number of errors isn't beyond the Singleton Bound
+		uint32_t error_loc = rs8_get_error_locator(synd, chk_sz);	//FIXME: this should not be chk_sz but for testing it will do
+		int8_t error_loc_order = gf8_poly_get_order(error_loc);
+		if(2*error_loc_order > chk_syms - erase_cnt)	//check that the number of errors isn't beyond the Singleton Bound
 			return -2;	//TODO: more diagnostic information should be encoded here and below
-		int8_t err_pos = rs8_get_error_pos(err_loc, ~e_pos);
-		int8_t err_cnt = __builtin_popcount(err_pos);
-		if(err_cnt != err_loc_order)
+		int8_t error_pos = rs8_get_error_pos(error_loc, tx_pos & (~erase_pos));
+		int8_t error_cnt = __builtin_popcount(error_pos);
+		if(error_cnt != error_loc_order)
 			return -3;	//not enough or too many roots
 		
-		e_pos |= err_pos;
-		e_loc = gf8_poly_mul(e_loc, err_loc);
-		e_eval = rs8_get_errata_evaluator(synd, chk_sz, e_loc);
+		errata_pos = erase_pos | error_pos;
+		errata_loc = gf8_poly_mul(erase_loc, error_loc);
+		errata_eval = rs8_get_errata_evaluator(synd, chk_sz, errata_loc);
 		
 	}
 	
-	return recv ^ rs8_get_errata_magnitude(e_eval, chk_sz, e_loc, e_pos);
+	return recv ^ rs8_get_errata_magnitude(errata_eval, chk_sz, errata_loc, errata_pos);
 }

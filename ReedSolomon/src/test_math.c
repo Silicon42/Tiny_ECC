@@ -103,10 +103,28 @@ int main()
     r = rs8_get_errata_magnitude(e_eval, 12, e_loc, e_pos);
     printf("%o\n", r);  //result 1200000
 
-    r = rs8_decode(030013, 21, 4, 0);
+    //4 check symbols, 2 errors
+    r = rs8_decode(030013, 21, 4, 0, 0x7F);
     printf("%o\n", r);  //result 1230013
 
-    r = rs8_decode(01230013, 21, 4, 0);
+    //4 check symbols, 2 erasures
+    r = rs8_decode(030013, 21, 4, 0b1100000, 0x7F);
+    printf("%o\n", r);  //result 1230013
+
+    //4 check symbols, 3 erasures
+    r = rs8_decode(00013, 21, 4, 0b1110000, 0x7F);
+    printf("%o\n", r);  //result 1230013
+
+    //4 check symbols, 4 erasures
+    r = rs8_decode(01013, 21, 4, 0b1111000, 0x7F);
+    printf("%o\n", r);  //result 1230013
+
+    //4 check symbols, 2 erasures, 1 error
+    r = rs8_decode(00013, 21, 4, 0b1100000, 0x7F);
+    printf("%o\n", r);  //result 1230013
+
+    //4 check symbols, no errata
+    r = rs8_decode(01230013, 21, 4, 0, 0x7F);
     printf("%o\n", r);  //result 1230013
     
     return 0;
