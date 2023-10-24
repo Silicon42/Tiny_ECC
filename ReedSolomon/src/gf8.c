@@ -18,9 +18,6 @@ const gf8_elem gf8_log[8] = {	// log_0 undefined so dummy 0xF8 included to simpl
 	0xF8,0,1,3,2,6,4,5
 };
 
-gf8_elem gf8_idx_inc(gf8_idx i) {return i + GF8_SYM_SZ;}
-gf8_elem gf8_idx_dec(gf8_idx i) {return i - GF8_SYM_SZ;}
-
 //simplified galois field multiply by 2 used for generating the Look Up Tables
 gf8_elem gf8_mul2_noLUT(gf8_elem x)
 {
@@ -139,16 +136,16 @@ gf8_poly gf8_poly_mul_q0_monic(gf8_poly p, gf8_poly q)
 gf8_poly gf8_poly_mod(gf8_poly p, gf8_idx p_sz, gf8_poly q, gf8_idx q_sz)
 {
 	//if p_sz and q_sz is known at compile time, this can be rewritten to be unrollable
-	p_sz = gf8_idx_dec(p_sz);
-	q_sz = gf8_idx_dec(q_sz);
+	p_sz -= GF8_SYM_SZ;
+	q_sz -= GF8_SYM_SZ;
 	//uncomment the following line to return the quotient and remainder in a single return value with the start of the quotient at b_arr[q_sz - 2]
 	//q &= ~((gf8_poly)-1 << q_sz); //clears the highest order term which should be a 1
 	p <<= q_sz;
 	q <<= p_sz;
-	for(gf8_idx i = p_sz + q_sz; i >= q_sz; i = gf8_idx_dec(i))
+	for(gf8_idx i = p_sz + q_sz; i >= q_sz; i -= GF8_SYM_SZ)
 	{
 		p ^= gf8_poly_scale(q, (p >> i) & 7);
-		q >>= 3;
+		q >>= GF8_SYM_SZ;
 	}
 	
 	return p;
@@ -158,10 +155,10 @@ gf8_poly gf8_poly_mod(gf8_poly p, gf8_idx p_sz, gf8_poly q, gf8_idx q_sz)
 //TODO: check if this is actually more efficient at this size
 gf8_elem gf8_poly_eval(gf8_poly p, gf8_idx p_sz, gf8_elem x)
 {
-	p_sz = gf8_idx_dec(p_sz);
+	p_sz -= GF8_SYM_SZ;
     gf8_elem y = p >> p_sz;
 	gf8_elem logx = gf8_log[x];
-    for(p_sz = gf8_idx_dec(p_sz); p_sz >= 0; p_sz = gf8_idx_dec(p_sz))
+    for(p_sz -= GF8_SYM_SZ; p_sz >= 0; p_sz -= GF8_SYM_SZ)
     {
         if(y)
             y = gf8_exp[gf8_log[y] + logx];
@@ -190,7 +187,7 @@ gf8_idx gf8_poly_get_size(gf8_poly p)
 {
     gf8_idx p_sz = 0;
     for(gf8_poly i = 1; i <= p; i <<= GF8_SYM_SZ)
-		p_sz = gf8_idx_inc(p_sz);
+		p_sz += GF8_SYM_SZ;
 
     return p_sz;
 }

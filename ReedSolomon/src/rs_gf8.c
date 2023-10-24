@@ -21,10 +21,10 @@ gf8_poly rs8_encode(gf8_poly raw, int8_t chk_syms)
 	gf8_idx chk_sz = chk_syms * GF8_SYM_SZ;
 	raw &= RS8_BLOCK_MASK >> chk_sz;
 	gf8_idx msg_sz = gf8_poly_get_size(raw);
-	chk_sz = gf8_idx_inc(chk_sz);
+	chk_sz += GF8_SYM_SZ;
 	
 	gf8_poly chk = gf8_poly_mod(raw, msg_sz, rs8_G_polys[chk_syms], chk_sz);
-	raw <<= gf8_idx_dec(chk_sz);
+	raw <<= chk_sz - GF8_SYM_SZ;
 	return raw | chk;
 }
 
@@ -121,10 +121,10 @@ gf8_poly rs8_get_error_locator(gf8_poly synd, gf8_idx s_sz)
 	disc_last = 1;		//aka b
 	//disc;				//aka d
 
-	for(gf8_idx n = 0; n < s_sz; n = gf8_idx_inc(n))
+	for(gf8_idx n = 0; n < s_sz; n += GF8_SYM_SZ)
 	{
 		disc = (synd >> n) & 7;	//term 0 of the following pairwise product
-		for(gf8_idx i = GF8_SYM_SZ; i <= error_sz; i = gf8_idx_inc(i))
+		for(gf8_idx i = GF8_SYM_SZ; i <= error_sz; i += GF8_SYM_SZ)
 		{
 			disc ^= gf8_mul((error_loc >> i) & 7, (synd >> (n - i)) & 7);
 		}
@@ -140,12 +140,12 @@ gf8_poly rs8_get_error_locator(gf8_poly synd, gf8_idx s_sz)
 			if(2 * error_sz <= n)
 			{
 				error_loc_last = error_loc_temp;
-				error_sz = gf8_idx_inc(n) - error_sz;
+				error_sz = GF8_SYM_SZ + n - error_sz;
 				disc_last = disc;
 				delay = 0;	//doesn't make sense to reset to 1 term of delay and continue since there's only 1 instruction before the end of the loop anyway
 			}
 		}
-		delay = gf8_idx_inc(delay);
+		delay += GF8_SYM_SZ;
 	}
 
 	return error_loc;
