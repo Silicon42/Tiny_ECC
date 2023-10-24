@@ -4,7 +4,7 @@
 
 int main()
 {
-    uint32_t r, synd, e_loc, e_eval;
+    gf8_poly r, synd, e_loc, e_eval;
 
     //TODO: make sure to test the individual symbol functions as well
     //TODO: do rigorous performance tests on various systems to get an idea which implementation of some functions
@@ -71,37 +71,9 @@ int main()
     r = rs8_get_errata_magnitude(synd, 21, e_loc, 0b01111000);
     printf("%o\n", r);  //result 1576000
 */
-    printf("\n");
     //4 check symbols, 3 data symbols
     r = rs8_encode(0123, rs8_G_polys[4], 15);
     printf("%o\n", r);  //result 1230013
-
-    //4 check symbols, 2 erasures
-    synd = rs8_get_syndromes(00030013, 21, 4);  //also tests that longer than true p_sz works
-    printf("%o\n", synd);  //result 2210
-
-    e_loc = rs8_get_erasure_locator(0b01100000);
-    printf("%o\n", e_loc);  //result 621
-
-    e_eval = rs8_get_errata_evaluator(synd, 12, e_loc);
-    printf("%o\n", e_eval);  //result 0010
-
-    r = rs8_get_errata_magnitude(e_eval, 12, e_loc, 0b01100000);
-    printf("%o\n", r);  //result 1200000
-
-    //4 check symbols, 2 errors
-    printf("\n");
-    e_loc = rs8_get_error_locator(synd, 12);
-    printf("%o\n", e_loc);  //result 621
-
-    e_eval = rs8_get_errata_evaluator(synd, 12, e_loc);
-    printf("%o\n", e_eval);  //result 0010
-
-    int8_t e_pos = rs8_get_error_pos(e_loc, -1);
-    printf("%X\n", e_pos);  //result 0b01100000
-
-    r = rs8_get_errata_magnitude(e_eval, 12, e_loc, e_pos);
-    printf("%o\n", r);  //result 1200000
 
     //4 check symbols, 2 errors
     r = rs8_decode(030013, 21, 4, 0, 0x7F);

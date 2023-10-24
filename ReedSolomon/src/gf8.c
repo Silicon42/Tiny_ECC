@@ -10,20 +10,20 @@
 //mask to isolate just the odd terms for the formal derivative
 #define GF8_ODD   007070707070
 
-const int8_t gf8_exp[14] = {	// length not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
+const gf8_elem gf8_exp[14] = {	// length not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
 	1,2,4,3,6,7,5,
 	1,2,4,3,6,7,5
 };
 
-const int8_t gf8_log[8] = {	// log_0 undefined so dummy 0xF8 included to simplify indexing
+const gf8_elem gf8_log[8] = {	// log_0 undefined so dummy 0xF8 included to simplify indexing
 	0xF8,0,1,3,2,6,4,5
 };
 
-int8_t gf8_idx_inc(gf8_idx i) {return i + GF8_SYM_SZ;}
-int8_t gf8_idx_dec(gf8_idx i) {return i - GF8_SYM_SZ;}
+gf8_elem gf8_idx_inc(gf8_idx i) {return i + GF8_SYM_SZ;}
+gf8_elem gf8_idx_dec(gf8_idx i) {return i - GF8_SYM_SZ;}
 
 //simplified galois field multiply by 2 used for generating the Look Up Tables
-int8_t gf8_mul2_noLUT(int8_t x)
+gf8_elem gf8_mul2_noLUT(gf8_elem x)
 {
     x <<= 1;
     if (x > 7)  // if it's not within the bounds of the Galois Field, reduce by the primitive polynomial
@@ -32,7 +32,7 @@ int8_t gf8_mul2_noLUT(int8_t x)
     return x;
 }
 
-int8_t gf8_div(int8_t a, int8_t b)
+gf8_elem gf8_div(gf8_elem a, gf8_elem b)
 {
 	if (b == 0)
 		return -1;	// divide by 0 error, normal operation should never get here
@@ -42,7 +42,7 @@ int8_t gf8_div(int8_t a, int8_t b)
 	return gf8_exp[gf8_log[a] - gf8_log[b] + 7];	// +7 offset to keep range positive
 }
 
-int8_t gf8_mul(int8_t a, int8_t b)
+gf8_elem gf8_mul(gf8_elem a, gf8_elem b)
 {
 	if (a == 0 || b == 0)
 		return 0;
@@ -50,35 +50,35 @@ int8_t gf8_mul(int8_t a, int8_t b)
 	return gf8_exp[gf8_log[a] + gf8_log[b]];
 }
 
-int8_t gf8_pow(int8_t x, int8_t power)
+gf8_elem gf8_pow(gf8_elem x, int8_t power)
 {
 	return gf8_exp[(gf8_log[x] * power) % 14];	// 14 is gf8_exp table size 
 }
 
 // slight optimization since most calls use x = 2 which evaluates to 1
 // power is assumed to be in the range of 0 to 13
-int8_t gf8_2pow(int8_t power)
+gf8_elem gf8_2pow(int8_t power)
 {
 	return gf8_exp[power];
 }
 
-int8_t gf8_inverse(int8_t x)
+gf8_elem gf8_inverse(gf8_elem x)
 {
 	return gf8_exp[7 - gf8_log[x]];
 }
 
 //prior to reduction, term can extend up to 2 bits above symbol due to shifting
 //this function is customized to GF(8) with prime polynomial 1011
-uint32_t gf8_poly_reduce(uint32_t p, uint32_t of)
+gf8_poly gf8_poly_reduce(gf8_poly p, gf8_poly of)
 {
 	return p ^ (of >> 2) ^ (of >> 3);
 }
 
 // optimized for fewer memory accesses
 //TODO: check if multiplies are faster, currently assuming that single shifts and conditional assignment are better
-uint32_t gf8_poly_scale(uint32_t p, int8_t x)
+gf8_poly gf8_poly_scale(gf8_poly p, gf8_elem x)
 {
-	uint32_t r0, r1, r2, of;
+	gf8_poly r0, r1, r2, of;
 	r0 = (x & 1) ? p : 0;
 	p <<= 1;
 	r1 = (x & 2) ? p : 0;
@@ -98,9 +98,9 @@ uint32_t gf8_poly_scale(uint32_t p, int8_t x)
 //Assumes that result can never be longer than 10 terms, and the shorter polynomial is in q
 // currently assuming the second multiplier is no more than 5 terms, this is probably not enough
 // may have to consider rearranging as interleaved high and low degree symbols if it results in faster ops
-uint32_t gf8_poly_mul(uint32_t p, uint32_t q)
+gf8_poly gf8_poly_mul(gf8_poly p, gf8_poly q)
 {
-	uint32_t r0, r1, r2, of;
+	gf8_poly r0, r1, r2, of;
 	r0 = (q & 01) ? p : 0;
 	r1 = (q & 02) * p;
 	r2 = (q & 04) * p;
@@ -133,13 +133,13 @@ uint32_t gf8_poly_mul(uint32_t p, uint32_t q)
 
 //p is dividend, q is divisor, p_sz and q_sz are size in BITS not symbols
 //returns remainder of the division since the quotient is never used
-uint32_t gf8_poly_mod(uint32_t p, gf8_idx p_sz, uint32_t q, gf8_idx q_sz)
+gf8_poly gf8_poly_mod(gf8_poly p, gf8_idx p_sz, gf8_poly q, gf8_idx q_sz)
 {
 	//if p_sz and q_sz is known at compile time, this can be rewritten to be unrollable
 	p_sz = gf8_idx_dec(p_sz);
 	q_sz = gf8_idx_dec(q_sz);
 	//uncomment the following line to return the quotient and remainder in a single return value with the start of the quotient at b_arr[q_sz - 2]
-	//q &= ~((uint32_t)-1 << q_sz); //clears the highest order term which should be a 1
+	//q &= ~((gf8_poly)-1 << q_sz); //clears the highest order term which should be a 1
 	p <<= q_sz;
 	q <<= p_sz;
 	for(gf8_idx i = p_sz + q_sz; i >= q_sz; i = gf8_idx_dec(i))
@@ -153,11 +153,11 @@ uint32_t gf8_poly_mod(uint32_t p, gf8_idx p_sz, uint32_t q, gf8_idx q_sz)
 
 //optimized version of div for binomial divisor/single eval point
 //TODO: check if this is actually more efficient at this size
-int8_t gf8_poly_eval(uint32_t p, gf8_idx p_sz, int8_t x)
+gf8_elem gf8_poly_eval(gf8_poly p, gf8_idx p_sz, gf8_elem x)
 {
 	p_sz = gf8_idx_dec(p_sz);
-    int8_t y = p >> p_sz;
-	int8_t logx = gf8_log[x];
+    gf8_elem y = p >> p_sz;
+	gf8_elem logx = gf8_log[x];
     for(p_sz = gf8_idx_dec(p_sz); p_sz >= 0; p_sz = gf8_idx_dec(p_sz))
     {
         if(y)
@@ -169,15 +169,15 @@ int8_t gf8_poly_eval(uint32_t p, gf8_idx p_sz, int8_t x)
 }
 
 //formal derivative of characteristic 2 keeps only the odd polynomials and reduces the degree by 1 step
-uint32_t gf8_poly_formal_derivative(uint32_t p)
+gf8_poly gf8_poly_formal_derivative(gf8_poly p)
 {
     return (p & GF8_ODD) >> GF8_SYM_SZ;
 }
 
-int8_t gf8_poly_get_order(uint32_t p)
+int8_t gf8_poly_get_order(gf8_poly p)
 {
     int8_t n = -1;
-    for(uint32_t i = 1; i <= p; i <<= GF8_SYM_SZ)
+    for(gf8_poly i = 1; i <= p; i <<= GF8_SYM_SZ)
         ++n;
 
     return n;
