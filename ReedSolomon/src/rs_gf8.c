@@ -1,10 +1,7 @@
 //BCH view, systematic encoding Reed Solomon using 3 bit symbols
 #include "rs_gf8.h"
 
-//#define OCTAL_MASK_A 		00707070707
-//#define OCTAL_MASK_B 		07070707070
-//#define BIT_PER_BYTE_MASK	0x0101010101010101
-
+#define RS8_BLOCK_MASK 07777777	//mask that represents the valid symbol positions
 
 const gf8_poly rs8_G_polys[] = {
 	      01,	//0 symbols (dummy for indexing)
@@ -16,47 +13,24 @@ const gf8_poly rs8_G_polys[] = {
 	01111111	//6 symbols
 };
 
-/*
-//returns a generator polynomial for BCH view Reed Solomon with a given number of check symbols
-gf8_poly rs8_G_unpack(int8_t syms)
-{
-	// packed octal format of the generator polynomials for given numbers of check symbols,
-	// omits the trailing highest order 1 term 
-	// indexing is done by shifting 3*n*(n-1)/2 where n is the number of check symbols
-	// and then shifting and masking 3 bits at a time for a count of n
-	uint64_t packed = 0576342223134775753321;
-	
-	polynomial coefficients for 1 thru 6 symbols highest to lowest term order are as follows
-	          1,1	1 symbol
-	        1,3,2	2 symbols
-	      1,7,5,3	3 symbols
-	    1,4,7,7,5	4 symbols
-	  1,2,2,3,1,3	5 symbols
-	1,5,7,6,3,4,2	6 symbols (identical to entries 1 thru 7 of the exponent table)
-	
-	int8_t chk_bits = syms * GF8_SYM_SZ;
-	packed >>= chk_bits * (syms-1) / 2;
-	packed &= ~((gf8_poly)-1 << chk_bits);
-	return packed | (1 << chk_bits);
-}
-*/
 //encodes a block of up to 18 bits worth of raw data as a Reed Solomon code word
 //infers message length from provided data, doesn't verify that data length fits with the intended number of check symbols
 //TODO: might be better to have the check polynomials easily indexable by check symbol count, consider rewriting for that
-gf8_poly rs8_encode(gf8_poly raw, gf8_poly chk_poly, gf8_idx chk_sz)
+gf8_poly rs8_encode(gf8_poly raw, int8_t chk_syms)
 {
-	gf8_idx msg_sz = 0;	//TODO: write a gf8_poly_get_size function to be used here
-	for(gf8_poly i = 1; i <= raw; i <<= GF8_SYM_SZ)
-		msg_sz = gf8_idx_inc(msg_sz);
+	gf8_idx chk_sz = chk_syms * GF8_SYM_SZ;
+	raw &= RS8_BLOCK_MASK >> chk_sz;
+	gf8_idx msg_sz = gf8_poly_get_size(raw);
+	chk_sz = gf8_idx_inc(chk_sz);
 	
-	gf8_poly chk = gf8_poly_mod(raw, msg_sz, chk_poly, chk_sz);
+	gf8_poly chk = gf8_poly_mod(raw, msg_sz, rs8_G_polys[chk_syms], chk_sz);
 	raw <<= gf8_idx_dec(chk_sz);
-	return raw | chk;	//TODO: add minimal input protection to make sure output is within valid block length via a mask
+	return raw | chk;
 }
 
 gf8_poly rs8_get_syndromes(gf8_poly p, gf8_idx p_sz, int8_t nsyms)
 {
-	gf8_poly synd = 0;	//accumulate syndromes in s
+	gf8_poly synd = 0;	//accumulate syndromes in synd
 	for(; nsyms > 0; --nsyms)	//accumulation done in descending index order
 	{	//which syndromes are used is effected by fcr so if you change that it must be changed here too
 		synd <<= GF8_SYM_SZ;
@@ -90,9 +64,8 @@ gf8_poly rs8_get_erasure_locator(int8_t erase_pos)
 //this can also be used to get the Forney Syndromes
 gf8_poly rs8_get_errata_evaluator(gf8_poly synd, gf8_idx chk_sz, gf8_poly errata_loc)
 {
-	gf8_poly errata_eval;
-	//TODO: this can be optimized since term 0 of errata_loc is always 1 and no more than 5 terms beyond that are needed
-	errata_eval = gf8_poly_mul(synd, errata_loc);
+	//term 0 of errata_loc is always 1 and no more than 5 terms beyond that are needed
+	gf8_poly errata_eval = gf8_poly_mul_q0_monic(synd, errata_loc);
 	errata_eval &= ~((gf8_poly)-1 << chk_sz);	//mask to the appropriate size
 	return errata_eval;
 }
@@ -152,7 +125,7 @@ gf8_poly rs8_get_error_locator(gf8_poly synd, gf8_idx s_sz)
 	{
 		disc = (synd >> n) & 7;	//term 0 of the following pairwise product
 		for(gf8_idx i = GF8_SYM_SZ; i <= error_sz; i = gf8_idx_inc(i))
-		{	//TODO: consider adding a pairwise product function to gf8.c
+		{
 			disc ^= gf8_mul((error_loc >> i) & 7, (synd >> (n - i)) & 7);
 		}
 

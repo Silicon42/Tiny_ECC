@@ -6,7 +6,6 @@ int main()
 {
     gf8_poly r, synd, e_loc, e_eval;
 
-    //TODO: make sure to test the individual symbol functions as well
     //TODO: do rigorous performance tests on various systems to get an idea which implementation of some functions
     // should be the default, ie multiplication vs shift + conditional assignement, for loop with term count tracking
     // vs term counting as needed vs max expected width mul/div to avoid branching, should there be an option for SIMD, etc.
@@ -72,7 +71,7 @@ int main()
     printf("%o\n", r);  //result 1576000
 */
     //4 check symbols, 3 data symbols
-    r = rs8_encode(0123, rs8_G_polys[4], 15);
+    r = rs8_encode(0123, 4);
     printf("%o\n", r);  //result 1230013
 
     //4 check symbols, 2 errors

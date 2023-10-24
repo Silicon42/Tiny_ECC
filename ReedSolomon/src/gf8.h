@@ -40,6 +40,8 @@ gf8_poly gf8_poly_scale(gf8_poly p, gf8_elem x);
 
 gf8_poly gf8_poly_mul(gf8_poly p, gf8_poly q);
 
+gf8_poly gf8_poly_mul_q0_monic(gf8_poly p, gf8_poly q);
+
 gf8_elem gf8_poly_eval(gf8_poly p, gf8_idx p_sz, gf8_elem x);
 
 gf8_poly gf8_poly_mod(gf8_poly p, gf8_idx p_sz, gf8_poly q, gf8_idx q_sz);
@@ -47,5 +49,7 @@ gf8_poly gf8_poly_mod(gf8_poly p, gf8_idx p_sz, gf8_poly q, gf8_idx q_sz);
 gf8_poly gf8_poly_formal_derivative(gf8_poly p);
 
 int8_t gf8_poly_get_order(gf8_poly p);
+
+gf8_idx gf8_poly_get_size(gf8_poly p);
 
 #endif  //GF8_H

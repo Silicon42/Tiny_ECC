@@ -1,5 +1,4 @@
 #include "gf8.h"
-#include <stdio.h>  //TODO: remove this and the associated printf
 
 #define PRIME_GF8 0b1011	//the prime polynomial for GF(8), x^3 + x^1 + 1
 //masks that isolate out the term overflow from the result in the mul and scale functions
@@ -91,45 +90,49 @@ gf8_poly gf8_poly_scale(gf8_poly p, gf8_elem x)
 	return gf8_poly_reduce(r0, of);
 }
 
-//FIXME: the resulting polynomial is longer than the inputs and in Reed-Solomon with 6 check symbols can overflow
-// if the result would be more than 10 terms long, need to add an alternate version that doesn't have this limitation
-// for completness' sake of the Galois Field arithmetic
-
 //Assumes that result can never be longer than 10 terms, and the shorter polynomial is in q
-// currently assuming the second multiplier is no more than 5 terms, this is probably not enough
-// may have to consider rearranging as interleaved high and low degree symbols if it results in faster ops
+// currently assuming the second multiplier is no more than 5 terms, this is just enough for
+// Reed Solomon with a max of 6 check symbols with specific optimizations
 gf8_poly gf8_poly_mul(gf8_poly p, gf8_poly q)
 {
 	gf8_poly r0, r1, r2, of;
+    //term 0
 	r0 = (q & 01) ? p : 0;
 	r1 = (q & 02) * p;
 	r2 = (q & 04) * p;
-
+    //term 1
 	r0 ^= (q & 010) * p;
 	r1 ^= (q & 020) * p;
 	r2 ^= (q & 040) * p;
-
+    //term 2
 	r0 ^= (q & 0100) * p;
 	r1 ^= (q & 0200) * p;
 	r2 ^= (q & 0400) * p;
-
+    //term 3
 	r0 ^= (q & 01000) * p;
 	r1 ^= (q & 02000) * p;
 	r2 ^= (q & 04000) * p;
-
+    //term 4
 	r0 ^= (q & 010000) * p;
 	r1 ^= (q & 020000) * p;
 	r2 ^= (q & 040000) * p;
-
+/*
 	r0 ^= (q & 0100000) * p;
 	r1 ^= (q & 0200000) * p;
 	r2 ^= (q & 0400000) * p;
-
+*/
 	of  = (r1 & GF8_R1_OF) ^ (r2 & GF8_R2_OF);
 	r0 ^= (r1 & GF8_R1_R0) ^ (r2 & GF8_R2_R0);
 
 	return gf8_poly_reduce(r0, of);
 }
+
+//squeezes one more term out of poly_mul with the assumption that term 0 of q is always 1
+gf8_poly gf8_poly_mul_q0_monic(gf8_poly p, gf8_poly q)
+{
+    return p ^ (gf8_poly_mul(p, q >> GF8_SYM_SZ) << GF8_SYM_SZ);
+}
+
 
 //p is dividend, q is divisor, p_sz and q_sz are size in BITS not symbols
 //returns remainder of the division since the quotient is never used
@@ -181,4 +184,13 @@ int8_t gf8_poly_get_order(gf8_poly p)
         ++n;
 
     return n;
+}
+
+gf8_idx gf8_poly_get_size(gf8_poly p)
+{
+    gf8_idx p_sz = 0;
+    for(gf8_poly i = 1; i <= p; i <<= GF8_SYM_SZ)
+		p_sz = gf8_idx_inc(p_sz);
+
+    return p_sz;
 }
