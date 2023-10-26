@@ -98,5 +98,13 @@ int main()
     r = rs8_decode(01230013, 21, 4, 0, 0x7F);
     printf("%o\n", r);  //result 1230013
     
+    //4 check symbols, 3 erasures, 1 error
+    r = rs8_decode(01013, 21, 4, 0b1110000, 0x7F);
+    printf("%o\n", r);  //result failure to decode
+
+    //4 check symbols, 3 errorss
+    r = rs8_decode(00013, 21, 4, 0, 0x7F);
+    printf("%o\n", r);  //result incorrect decode
+
     return 0;
 }
