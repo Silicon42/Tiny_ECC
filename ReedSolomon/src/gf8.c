@@ -9,7 +9,7 @@
 //mask to isolate just the odd terms for the formal derivative
 #define GF8_ODD   007070707070
 
-const gf8_elem gf8_exp[14] = {	// length not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
+const gf8_elem gf8_exp[GF8_EXP_ENTRIES] = {	// length not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
 	1,2,4,3,6,7,5,
 	1,2,4,3,6,7,5
 };
@@ -22,7 +22,7 @@ const gf8_elem gf8_log[8] = {	// log_0 undefined so dummy 0xF8 included to simpl
 gf8_elem gf8_mul2_noLUT(gf8_elem x)
 {
     x <<= 1;
-    if (x > 7)  // if it's not within the bounds of the Galois Field, reduce by the primitive polynomial
+    if (x > GF8_MAX)  // if it's not within the bounds of the Galois Field, reduce by the primitive polynomial
         x ^= PRIME_GF8;
     
     return x;
@@ -35,7 +35,7 @@ gf8_elem gf8_div(gf8_elem a, gf8_elem b)
 	if (a == 0)
 		return 0;
 	
-	return gf8_exp[gf8_log[a] - gf8_log[b] + 7];	// +7 offset to keep range positive
+	return gf8_exp[gf8_log[a] - gf8_log[b] + GF8_MAX];	// +GF8_MAX offset to keep range positive
 }
 
 gf8_elem gf8_mul(gf8_elem a, gf8_elem b)
@@ -48,7 +48,7 @@ gf8_elem gf8_mul(gf8_elem a, gf8_elem b)
 
 gf8_elem gf8_pow(gf8_elem x, int8_t power)
 {
-	return gf8_exp[(gf8_log[x] * power) % 14];	// 14 is gf8_exp table size 
+	return gf8_exp[(gf8_log[x] * power) % GF8_EXP_ENTRIES];
 }
 
 // slight optimization since most calls use x = 2 which evaluates to 1
@@ -60,7 +60,7 @@ gf8_elem gf8_2pow(int8_t power)
 
 gf8_elem gf8_inverse(gf8_elem x)
 {
-	return gf8_exp[7 - gf8_log[x]];
+	return gf8_exp[GF8_MAX - gf8_log[x]];
 }
 
 //prior to reduction, term can extend up to 2 bits above symbol due to shifting
@@ -144,7 +144,7 @@ gf8_poly gf8_poly_mod(gf8_poly p, gf8_idx p_sz, gf8_poly q, gf8_idx q_sz)
 	q <<= p_sz;
 	for(gf8_idx i = p_sz + q_sz; i >= q_sz; i -= GF8_SYM_SZ)
 	{
-		p ^= gf8_poly_scale(q, (p >> i) & 7);
+		p ^= gf8_poly_scale(q, (p >> i) & GF8_MAX);
 		q >>= GF8_SYM_SZ;
 	}
 	
@@ -163,7 +163,7 @@ gf8_elem gf8_poly_eval(gf8_poly p, gf8_idx p_sz, gf8_elem x)
         if(y)
             y = gf8_exp[gf8_log[y] + logx];
         
-        y ^= ((p >> p_sz) & 7);
+        y ^= ((p >> p_sz) & GF8_MAX);
     }
     return y;
 }

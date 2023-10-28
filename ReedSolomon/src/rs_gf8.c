@@ -47,7 +47,7 @@ gf8_poly rs8_get_syndromes(gf8_poly p, gf8_idx p_sz, int8_t nsyms)
 gf8_poly rs8_get_erasure_locator(int8_t erase_pos)
 {
 	gf8_poly erase_loc = 1;	//the errata locator polynomial
-	for(int8_t i = 0; i < 7; ++i)
+	for(int8_t i = 0; i < GF8_MAX; ++i)
 	{
 		if(erase_pos & 1)
 		{
@@ -88,7 +88,7 @@ gf8_poly rs8_get_errata_magnitude(gf8_poly errata_eval, gf8_idx chk_sz, gf8_poly
 	errata_loc_prime = gf8_poly_formal_derivative(errata_loc);
 
 	errata_mag = 0;
-	for(int8_t i = 1; i < 8; ++i)
+	for(int8_t i = 1; i <= GF8_MAX; ++i)
 	{
 		errata_mag <<= GF8_SYM_SZ;
 		errata_pos <<= 1;
@@ -123,10 +123,10 @@ gf8_poly rs8_get_error_locator(gf8_poly synd, gf8_idx s_sz)
 
 	for(gf8_idx n = 0; n < s_sz; n += GF8_SYM_SZ)
 	{
-		disc = (synd >> n) & 7;	//term 0 of the following pairwise product
+		disc = (synd >> n) & GF8_MAX;	//term 0 of the following pairwise product
 		for(gf8_idx i = GF8_SYM_SZ; i <= error_sz; i += GF8_SYM_SZ)
 		{
-			disc ^= gf8_mul((error_loc >> i) & 7, (synd >> (n - i)) & 7);
+			disc ^= gf8_mul((error_loc >> i) & GF8_MAX, (synd >> (n - i)) & GF8_MAX);
 		}
 
 		if(disc)
@@ -157,7 +157,7 @@ int8_t rs8_get_error_pos(gf8_poly error_loc, int8_t mask_pos)
 {
 	int8_t error_pos = 0;
 
-	for(int8_t i = 1; i <= 7; ++i)
+	for(int8_t i = 1; i <= GF8_MAX; ++i)
 	{
 		error_pos <<= 1;
 		mask_pos <<= 1;

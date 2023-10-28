@@ -6,9 +6,9 @@ OBJ_DIR := obj
 SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
 OBJ_FILES := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC_FILES))
 EXECUTABLES := genRS_LUT benchmark test_math
-COMMON_OBJS := rs_gf8.o obj/gf8.o
-COMMON_HEADERS := rs_gf8.h src/gf8.h
-COMMON_DEPS := $(OBJ_DIR)/$(COMMON_OBJS) $(SRC_DIR)/$(COMMON_HEADERS)
+COMMON_OBJS := obj/rs_gf8.o obj/gf8.o obj/rs_gf16.o obj/gf16.o
+COMMON_HEADERS := src/rs_gf8.h src/gf8.h src/rs_gf16.h src/gf16.h
+COMMON_DEPS := $(COMMON_OBJS) $(COMMON_HEADERS)
 
 .PHONY: all
 all: $(EXECUTABLES)
@@ -20,7 +20,7 @@ test_math: $(OBJ_DIR)/test_math.o $(COMMON_DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 benchmark: $(OBJ_DIR)/benchmark.o $(COMMON_DEPS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -O3 -o $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<

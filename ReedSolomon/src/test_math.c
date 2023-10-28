@@ -4,7 +4,7 @@
 
 int main()
 {
-    gf8_poly r, synd, e_loc, e_eval;
+    gf8_poly r;
 
     //TODO: do rigorous performance tests on various systems to get an idea which implementation of some functions
     // should be the default, ie multiplication vs shift + conditional assignement, for loop with term count tracking

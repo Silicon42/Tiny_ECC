@@ -1,104 +1,213 @@
-
-#include <stdint.h>
-#include <stdio.h>
+//BCH view, systematic encoding Reed Solomon using 3 bit symbols
 #include "rs_gf16.h"
 
-#define PRIME4 0b10011	//the prime polynomial for GF(2^4), x^4 + x^1 + 1
-#define SYMBOL_MASK4 0x0F0F0F0F0F0F0F0F	//masks off the low nibbles of each byte
+#define RS8_BLOCK_MASK 07777777	//mask that represents the valid symbol positions
 
-const int8_t gf16_exp[] = {	// not a multiple of 2 so duplicate entries + offset needed for easy wraparound of negatives
-	0x1,0x2,0x4,0x8,0x3,0x6,0xC,0xB,0x5,0xA,0x7,0xE,0xF,0xD,0x9,
-	0x1,0x2,0x4,0x8,0x3,0x6,0xC,0xB,0x5,0xA,0x7,0xE,0xF,0xD,0x9
+const gf16_poly rs16_G_polys[] = {
+	      01,	//0 symbols (dummy for indexing)
+	     012,	//1 symbol	First Consectutive Root, aka fcr aka c = 1
+	    0163,	//2 symbols
+	   01525,	//3 symbols
+	  013123,	//4 symbols
+	 0143562,	//5 symbols
+	01111111	//6 symbols
 };
 
-const int8_t gf16_log[] = {	// log_0 undefined so dummy 0xFF included to simplify indexing
-	0xFF,0x0,0x1,0x4,0x2,0x8,0x5,0xA,0x3,0xE,0x9,0x7,0x6,0xD,0xB,0xC
-};
-
-int8_t gf16_div(int8_t a, int8_t b)
+//encodes a block of up to 18 bits worth of raw data as a Reed Solomon code word
+//infers message length from provided data, doesn't verify that data length fits with the intended number of check symbols
+//TODO: might be better to have the check polynomials easily indexable by check symbol count, consider rewriting for that
+gf16_poly rs16_encode(gf16_poly raw, int8_t chk_syms)
 {
-	if (b == 0)
-		return -1;	// divide by 0 error, normal operation should never get here
-	if (a == 0)
-		return 0;
+	gf16_idx chk_sz = chk_syms *GF16_SYM_SZ;
+	raw &= RS8_BLOCK_MASK >> chk_sz;
+	gf16_idx msg_sz = gf16_poly_get_size(raw);
+	chk_sz +=GF16_SYM_SZ;
 	
-	return gf16_exp[gf16_log[a] - gf16_log[b] + 15];	// +15 offset to keep range positive
+	gf16_poly chk = gf16_poly_mod(raw, msg_sz, rs16_G_polys[chk_syms], chk_sz);
+	raw <<= chk_sz -GF16_SYM_SZ;
+	return raw | chk;
 }
 
-int8_t gf16_mul(int8_t a, int8_t b)
+gf16_poly rs16_get_syndromes(gf16_poly p, gf16_idx p_sz, int8_t nsyms)
 {
-	if (a ==0 || b == 0)
-		return 0;
-	
-	return gf16_exp[gf16_log[a] + gf16_log[b]];
+	gf16_poly synd = 0;	//accumulate syndromes in synd
+	for(; nsyms > 0; --nsyms)	//accumulation done in descending index order
+	{	//which syndromes are used is effected by fcr so if you change that it must be changed here too
+		synd <<=GF16_SYM_SZ;
+		synd |= gf16_poly_eval(p, p_sz, gf16_exp[nsyms]);
+	}
+
+	return synd;
 }
 
-int8_t gf16_pow(int8_t x, int8_t power)
+//erase_pos is encoded such that a set bit indicates the corresponding degree term is erased or in error
+// might not be faster than listing indices but is a bit more transparent and since the field is small
+// should have relatively little impact.
+//TODO: verify this ^
+gf16_poly rs16_get_erasure_locator(int16_t erase_pos)
 {
-	return gf16_exp[(gf16_log[x] * power) % 30];	// 30 is gf16_exp table size 
+	gf16_poly erase_loc = 1;	//the errata locator polynomial
+	for(int8_t i = 0; i <GF16_MAX; ++i)
+	{
+		if(erase_pos & 1)
+		{
+			//faster equivalent of gf16_poly_mul() for a monic binomial in the form (ax - 1)
+			//using this form of the roots simplifies later calculations since we know term 0 is a 1
+			erase_loc ^= gf16_poly_scale(erase_loc, gf16_exp[i]) <<GF16_SYM_SZ;
+		}
+		erase_pos >>= 1;
+	}
+
+	return erase_loc;
 }
 
-// slight optimization since most calls use x = 2 which evaluates to 1
-int8_t gf16_2pow(int8_t power)
-{	//TODO: check if it still needs the modulo for this special use case
-	if (power >= 30)
-		printf("required\n");
-	return gf16_exp[power % 30];
-}
-
-int8_t gf16_inverse(int8_t x)
+//this can also be used to get the Forney Syndromes
+gf16_poly rs16_get_errata_evaluator(gf16_poly synd, gf16_idx chk_sz, gf16_poly errata_loc)
 {
-	return gf16_exp[15 - gf16_log[x]];
+	//term 0 of errata_loc is always 1 and no more than 5 terms beyond that are needed
+	gf16_poly errata_eval = gf16_poly_mul_q0_monic(synd, errata_loc);
+	errata_eval &= ~((gf16_poly)-1 << chk_sz);	//mask to the appropriate size
+	return errata_eval;
 }
 
-int8_t gf16_mul2_noLUT(int8_t x)
+//Forney algorithm
+gf16_poly rs16_get_errata_magnitude(gf16_poly errata_eval, gf16_idx chk_sz, gf16_poly errata_loc, int16_t errata_pos)
 {
-    x <<= 1;
-    if (x > 15)  // if it's not within the bounds of the Galois Field, reduce by the primitive polynomial
-        x ^= PRIME4;
-    
-    return x;
-}
-
-// helper for reducing after polynomial multiply
-// TODO: check if inlining helps performance due to multiple issue/pipelining benefits
-uint64_t gf16_poly_reduce(uint64_t p)
-{
-	uint64_t mask = p & 0xF0F0F0F0F0F0F0F0;
-	mask |= (mask >> 3) ^ (mask >> 4);
-	return p ^ mask;
-}
-
 /*
-x86 has CLMUL for this type of operation and ARM NEON has VMUL in conjuction with P8 and P16 (aka polynomial)
-types in newer architectures however it can be faked on other devices by creative packing of wider data types 
-to acheieve a psuedo vectorized version that operates on 4 or 8 bytes in parallel depending on OS and hardware.
+	error value e(i) = -(X(i)^(1-c) * omega(X(i)^-1)) / (lambda'(X(i)^-1))
+	where X(i)^-1 is the roots of the error locator, omega(X) is the error evaluator,
+	lambda'(X) is the formal derivative of the error locator, and c is the 1st
+	consecutive root of the generator used in the encoding, which in this case is always
+	1 such that the X(i)^(1-c) simplifies out to 1
 
-This works for GF(16) and GF(8) because polynomial multiply can be faked as a single long integer multiply so
-long as there's sufficient padding between symbols allowing the overflow from one symbol to not clobber the next.
-the required amount for polynomial scaling is 1 symbol width and for polynomial multiply is:
-1 symbol width + log2(max result terms) - 1
-
-Since indexing is only fast on byte bounds, we already have this padding for free and all that is needed is
-a fast modular reduction which isn't too hard to encode as a series of shifts, masks, and xors but is unique
-to any given primitive polynomial with diminishing returns for longer ones so usage of this on larger symbols
-probably isn't practical.
+	errata_eval = synd * errata_loc
 */
-union Poly16 gf16_poly_mul(union Poly16 p, union Poly16 q)
-{	
-	p.uxl *= q.uxl;
-	p.ull[0] = gf16_poly_reduce(p.ull[0]);
-	p.ull[1] = gf16_poly_reduce(p.ull[1]);
+	gf16_poly errata_loc_prime, errata_mag;
+	gf16_elem root, ee_res, lp_res;
 
-	return p;
+	errata_loc_prime = gf16_poly_formal_derivative(errata_loc);
+
+	errata_mag = 0;
+	for(int8_t i = 1; i <=GF16_MAX; ++i)
+	{
+		errata_mag <<=GF16_SYM_SZ;
+		errata_pos <<= 1;
+
+		if(errata_pos & 0x8000)
+		{
+			root = gf16_exp[i];
+			ee_res = gf16_poly_eval(errata_eval, chk_sz, root);
+			lp_res = gf16_poly_eval(errata_loc_prime, chk_sz, root);	//chk_sz is guaranteed to be at least as big as errata_loc_prime's actual size
+			errata_mag |= gf16_div(ee_res, lp_res);	//TODO: if converting to position list form, consider adding a pairwise divide function to gf16.c
+		}
+	}
+
+	return errata_mag;
 }
 
-union Poly16 gf16_poly_scale(union Poly16 p, int8_t x)
+//synd_rem is the number of remaining syndromes, ie # check symbols - # erasures, aka N on Wikipedia
+gf16_poly rs16_get_error_locator(gf16_poly synd, gf16_idx s_sz)
 {
-	p.uxl *= x;
-	
-	p.ull[0] = gf16_poly_reduce(p.ull[0]);
-	p.ull[1] = gf16_poly_reduce(p.ull[1]);
+	gf16_poly error_loc, error_loc_last, error_loc_temp;
+	gf16_elem disc, disc_last;
+	gf16_idx delay, error_sz;
 
-	return p;
+	error_loc = 1;		//aka C(x)
+	error_loc_last = 1;	//aka B(x)
+	//error_loc_temp;	//aka T(x)
+	//s_sz;				//aka N		(*GF16_SYM_SZ so it's in bits)
+	error_sz = 0;		//aka L		(*GF16_SYM_SZ so it's in bits due to being involved in calculations with n)
+	delay =GF16_SYM_SZ;	//aka m		(*GF16_SYM_SZ so it's in bits)
+	disc_last = 1;		//aka b
+	//disc;				//aka d
+
+	for(gf16_idx n = 0; n < s_sz; n +=GF16_SYM_SZ)
+	{
+		disc = (synd >> n) &GF16_MAX;	//term 0 of the following pairwise product
+		for(gf16_idx i =GF16_SYM_SZ; i <= error_sz; i +=GF16_SYM_SZ)
+		{
+			disc ^= gf16_mul((error_loc >> i) &GF16_MAX, (synd >> (n - i)) &GF16_MAX);
+		}
+
+		if(disc)
+		{
+			//this is only okay to have here because we're dealing with small fields, so we can make
+			// use of automatic register renaming to not incur any significant extra cost from copying,
+			// otherwise you would need the else block to avoid the copy as in the Wikipedia article
+			error_loc_temp = error_loc;
+			error_loc ^= (gf16_poly_scale(error_loc_last, gf16_div(disc, disc_last)) << delay);
+
+			if(2 * error_sz <= n)
+			{
+				error_loc_last = error_loc_temp;
+				error_sz =GF16_SYM_SZ + n - error_sz;
+				disc_last = disc;
+				delay = 0;	//doesn't make sense to reset to 1 term of delay and continue since there's only 1 instruction before the end of the loop anyway
+			}
+		}
+		delay +=GF16_SYM_SZ;
+	}
+
+	return error_loc;
+}
+
+//mask_pos has set bits for the valid (ie received) message terms and lets us skip the erasures and
+// otherwise non-transmitted terms such as fixed padding or less than maximal message length
+int16_t rs16_get_error_pos(gf16_poly error_loc, int16_t mask_pos)
+{
+	int16_t error_pos = 0;
+
+	for(int8_t i = 1; i <=GF16_MAX; ++i)
+	{
+		error_pos <<= 1;
+		mask_pos <<= 1;
+		if(mask_pos & 0b10000000)	//skips non-received symbols, not strictly required but potentially beneficial since poly eval is relatively expensive
+			error_pos |= !gf16_poly_eval(error_loc, 21, gf16_exp[i]);	//for non-C coders, this means that when it evaluates to 0 we get back a True which is equivalent to 1
+	}
+
+	return error_pos;
+}
+
+//tx_pos inludes set bits for only the valid positions for errors to occur, ie not in untransmitted padding symbols
+gf16_poly rs16_decode(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_pos, int16_t tx_pos)
+{
+	int8_t erase_cnt = __builtin_popcount(e_pos);
+	if(erase_cnt > chk_syms)	//if the number of erasures is greater than the number of check symbols,
+		return -1;	// it's already beyond the Singleton Bound and can't be uniquely decoded so we return an error value
+
+	gf16_poly e_eval = rs16_get_syndromes(recv, r_sz, chk_syms);
+
+	if(e_eval == 0)	//no errors
+		return recv;
+
+	gf16_idx chk_sz = chk_syms*GF16_SYM_SZ;
+	gf16_poly e_loc = 1;
+
+	if(e_pos)	//this check isn't required but shortcuts excess calculations when no erasures specified
+	{
+		e_loc = rs16_get_erasure_locator(e_pos);
+		e_eval = rs16_get_errata_evaluator(e_eval, chk_sz, e_loc);	//compute Forney syndromes
+	}
+
+	if(erase_cnt != chk_syms)	//skip checking for errors if the maximum number of erasures occurred as we no longer have enough extra data
+	{	
+		gf16_poly error_loc = rs16_get_error_locator(e_eval, chk_sz);	//may be smaller than chk_sz but under most conditions this is correct
+		int8_t error_loc_order = gf16_poly_get_order(error_loc);
+		if(2*error_loc_order > chk_syms - erase_cnt)	//check that the number of errors isn't beyond the Singleton Bound
+			return -2;	//TODO: more diagnostic information should be encoded here and below
+		int16_t error_pos = rs16_get_error_pos(error_loc, tx_pos & (~e_pos));
+		int8_t error_cnt = __builtin_popcount(error_pos);
+		if(error_cnt != error_loc_order)
+			return -3;	//not enough or too many roots
+		
+		//combine the error and erasure position, locator, and evaluator to the errata versions of themselves
+		e_pos |= error_pos;
+		e_loc = gf16_poly_mul(e_loc, error_loc);
+		e_eval = rs16_get_errata_evaluator(e_eval, chk_sz, error_loc);
+	}
+
+	gf16_poly errata_mag = rs16_get_errata_magnitude(e_eval, chk_sz, e_loc, e_pos);
+	recv ^= errata_mag;
+
+	return recv;
 }
