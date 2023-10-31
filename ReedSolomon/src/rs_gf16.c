@@ -1,16 +1,24 @@
 //BCH view, systematic encoding Reed Solomon using 3 bit symbols
 #include "rs_gf16.h"
 
-#define RS8_BLOCK_MASK 07777777	//mask that represents the valid symbol positions
+#define RS16_BLOCK_MASK 0xFFFFFFFFFFFFFFF	//mask that represents the valid symbol positions
 
 const gf16_poly rs16_G_polys[] = {
-	      01,	//0 symbols (dummy for indexing)
-	     012,	//1 symbol	First Consectutive Root, aka fcr aka c = 1
-	    0163,	//2 symbols
-	   01525,	//3 symbols
-	  013123,	//4 symbols
-	 0143562,	//5 symbols
-	01111111	//6 symbols
+				  0x1,	//0 symbols (dummy for indexing)
+				 0x12,	//1 symbol	First Consectutive Root, aka fcr aka c = 1
+				0x168,	//2 symbols
+			   0x1EDC,	//3 symbols
+			  0x1DC87,	//4 symbols
+			 0x1B4621,	//5 symbols
+			0x1793CAC,	//6 symbols
+		   0x1CDF27ED,	//7 symbols
+		  0x19434D6EC,	//8 symbols
+		 0x131D93D7A1,	//9 symbols
+		0x148AC942C27,	//10 symbols
+	   0x1A53AD3F368C,	//11 symbols
+	  0x1595814D94CD8,	//12 symbols
+	 0x185A439C7BDE62,	//13 symbols
+	0x111111111111111	//14 symbols
 };
 
 //encodes a block of up to 18 bits worth of raw data as a Reed Solomon code word
@@ -19,7 +27,7 @@ const gf16_poly rs16_G_polys[] = {
 gf16_poly rs16_encode(gf16_poly raw, int8_t chk_syms)
 {
 	gf16_idx chk_sz = chk_syms *GF16_SYM_SZ;
-	raw &= RS8_BLOCK_MASK >> chk_sz;
+	raw &= RS16_BLOCK_MASK >> chk_sz;
 	gf16_idx msg_sz = gf16_poly_get_size(raw);
 	chk_sz +=GF16_SYM_SZ;
 	

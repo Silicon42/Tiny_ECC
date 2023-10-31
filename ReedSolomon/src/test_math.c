@@ -1,5 +1,6 @@
 #include "rs_gf8.h"
 #include "gf8.h"
+#include "gf16.h"
 #include <stdio.h>
 
 int main()
@@ -70,6 +71,7 @@ int main()
     r = rs8_get_errata_magnitude(synd, 21, e_loc, 0b01111000);
     printf("%o\n", r);  //result 1576000
 */
+
     //4 check symbols, 3 data symbols
     r = rs8_encode(0123, 4);
     printf("%o\n", r);  //result 1230013
@@ -105,6 +107,8 @@ int main()
     //4 check symbols, 3 errorss
     r = rs8_decode(00013, 21, 4, 0, 0x7F);
     printf("%o\n", r);  //result incorrect decode
+
+    gf16_poly p = 0;
 
     return 0;
 }
