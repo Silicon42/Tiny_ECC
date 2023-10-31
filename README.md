@@ -1,9 +1,9 @@
 # Tiny_ECC
 Lightweight C implementations of short Reed-Solomon error correcting codes. Suitable for use on 32-bit embedded systems with no additional hardware or architecture support required to be performant.
 
-Currently includes encoding for Reed-Solomon over GF(8) and GF(16) and decoding for Reed-Solomon over GF(8) with support for both erasures and errors.
+Currently includes encoding and decoding for Reed-Solomon over GF(8) and GF(16) with support for both erasures and errors up to the Singleton bound.
 
-GF(16) decoding coming soon.
+TODO: add support for feedback on number and position of errors and potentially an option to not decode to the Singleton bound, leaving some guard symbols for error detection if that's not already immediately detectable from error number feedback.
 
 May later add Binary Golay codes and Hamming codes if I ever have time for it.
 
