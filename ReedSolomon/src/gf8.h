@@ -1,27 +1,27 @@
 #ifndef GF8_H
 #define GF8_H
 
-//GF(8) field element and polynomial math library
+// GF(8) field element and polynomial math library
 //
-//polynomials are packed as consecutive octals in uint32 with lowest order terms in the least significant bits
-// as such they are limited to a max of 10 terms although polynomial multiply is further limited to only
-// functioning correctly for up to 6 terms in the second argument
+// polynomials are packed as consecutive octals in uint32 with lowest order terms in the least significant bits
+//  as such they are limited to a max of 10 terms although polynomial multiply is further limited to only
+//  functioning correctly for up to 6 terms in the second argument
 //
-//GF(8) as defined by using primitive polynomial 1x^3 + 0x^2 + 1x^1 + 1x^0, ie 1011 for field element reduction
-// and the primitive field element used is 2 for the exponent and log tables
+// GF(8) as defined by using primitive polynomial 1x^3 + 0x^2 + 1x^1 + 1x^0, ie 1011 for field element reduction
+//  and the primitive field element used is 2 for the exponent and log tables
 
 #include <stdint.h>
 
-#define GF8_SYM_SZ  3	    //how many bits to shift to move 1 symbol
-#define GF8_MAX     7      //max value a field element can have
-#define GF8_EXP_ENTRIES    2*GF8_MAX  //number of entries in the exponent table
+#define GF8_SYM_SZ 3				// how many bits to shift to move 1 symbol
+#define GF8_MAX 7					// max value a field element can have
+#define GF8_EXP_ENTRIES 2 * GF8_MAX // number of entries in the exponent table
 
-typedef int8_t gf8_idx;     //represents a polynomial term index or size in terms of bits, should always be incremented/decremented by GF8_SYM_SZ
-typedef uint8_t gf8_elem;   //a single GF(8) element, only valid in the range of 0 through 7
-typedef uint32_t gf8_poly;  //GF(8) polynomial of order no greater than 9 (10 terms) packed in a uint32
+typedef int8_t gf8_idx;		// represents a polynomial term index or size in terms of bits, should always be incremented/decremented by GF8_SYM_SZ
+typedef uint8_t gf8_elem;	// a single GF(8) element, only valid in the range of 0 through 7
+typedef uint32_t gf8_poly;	// GF(8) polynomial of order no greater than 9 (10 terms) packed in a uint32
 
-extern const gf8_elem gf8_exp[GF8_EXP_ENTRIES];	//length not a multiple of 2 so duplicate entries + offset needed for fast wraparound of negatives
-extern const gf8_elem gf8_log[1+GF8_MAX];	//log_0 undefined so dummy 0xF8 included to simplify indexing
+extern const gf8_elem gf8_exp[GF8_EXP_ENTRIES];	// length not a multiple of 2 so duplicate entries + offset needed for fast wraparound of negatives
+extern const gf8_elem gf8_log[1 + GF8_MAX];		// log_0 undefined so dummy 0xF8 included to simplify indexing
 
 gf8_elem gf8_mul2_noLUT(gf8_elem x);
 
@@ -51,4 +51,4 @@ int8_t gf8_poly_get_order(gf8_poly p);
 
 gf8_idx gf8_poly_get_size(gf8_poly p);
 
-#endif  //GF8_H
+#endif // GF8_H
