@@ -21,7 +21,7 @@ typedef uint8_t gf8_elem;	// a single GF(8) element, only valid in the range of 
 typedef uint32_t gf8_poly;	// GF(8) polynomial of order no greater than 9 (10 terms) packed in a uint32
 
 extern const gf8_elem gf8_exp[GF8_EXP_ENTRIES];	// length not a multiple of 2 so duplicate entries + offset needed for fast wraparound of negatives
-extern const gf8_elem gf8_log[1 + GF8_MAX];		// log_0 undefined so dummy 0xF8 included to simplify indexing
+extern const gf8_elem gf8_log[1 + GF8_MAX];		// log_0 undefined so dummy 0xFF included to simplify indexing
 
 gf8_elem gf8_mul2_noLUT(gf8_elem x);
 

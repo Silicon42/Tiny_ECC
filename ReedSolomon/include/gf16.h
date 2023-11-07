@@ -22,7 +22,7 @@ typedef uint64_t gf16_poly;	// GF(16) polynomial of order no greater than 14 (15
 // while there is room for a 16th term, there is not for its overflow and BCH view Reed Solomon is limited to 15 anyway
 
 extern const gf16_elem gf16_exp[GF16_EXP_ENTRIES];	// length not a multiple of 2 so duplicate entries + offset needed for fast wraparound of negatives
-extern const gf16_elem gf16_log[1 + GF16_MAX];		// log_0 undefined so dummy 0xF8 included to simplify indexing
+extern const gf16_elem gf16_log[1 + GF16_MAX];		// log_0 undefined so dummy 0xFF included to simplify indexing
 
 gf16_elem gf16_mul2_noLUT(gf16_elem x);
 

@@ -15,7 +15,7 @@ const gf16_elem gf16_exp[GF16_EXP_ENTRIES] = {	// length not a multiple of 2 so 
 	0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9,
 	0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
-const gf16_elem gf16_log[1 + GF16_MAX] = {	// log_0 undefined so dummy 0xF8 included to simplify indexing
+const gf16_elem gf16_log[1 + GF16_MAX] = {	// log_0 undefined so dummy 0xFF included to simplify indexing
 	0xFF, 0x0, 0x1, 0x4, 0x2, 0x8, 0x5, 0xA, 0x3, 0xE, 0x9, 0x7, 0x6, 0xD, 0xB, 0xC};
 
 // simplified galois field multiply by 2 used for generating the Look Up Tables
@@ -89,6 +89,8 @@ gf16_poly gf16_poly_scale(gf16_poly p, gf16_elem x)
 	return gf16_poly_reduce(r0, of);
 }
 
+// FIXME: This is not enough terms for full GF(16) polynomials, it needs to be increased and
+//  maybe converted to a loop
 // Assumes that result can never be longer than 10 terms, and the shorter polynomial is in q
 //  currently assuming the second multiplier is no more than 5 terms, this is just enough for
 //  Reed Solomon with a max of 6 check symbols with specific optimizations

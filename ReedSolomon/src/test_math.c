@@ -108,7 +108,5 @@ int main()
 	r = rs8_decode(00013, 21, 4, 0, 0x7F);
 	printf("%o\n", r); // result incorrect decode
 
-	gf16_poly p = 0;
-
 	return 0;
 }
