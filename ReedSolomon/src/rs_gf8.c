@@ -14,12 +14,13 @@ const gf8_poly rs8_G_polys[] = {
 };
 
 // encodes a block of up to 18 bits worth of raw data as a Reed Solomon code word
-// infers message length from provided data, doesn't verify that data length fits with the intended number of check symbols
-// TODO: might be better to have the check polynomials easily indexable by check symbol count, consider rewriting for that
+//  infers message length from provided data, doesn't verify that data length fits
+//  with the specified number of check symbols and will truncate to the max size,
+//  discarding the most significant bits if oversized.
 gf8_poly rs8_encode(gf8_poly raw, int8_t chk_syms)
 {
 	gf8_idx chk_sz = chk_syms * GF8_SYM_SZ;
-	raw &= RS8_BLOCK_MASK >> chk_sz;
+	raw &= RS8_BLOCK_MASK >> chk_sz;	//truncate most significant bits if provided data is oversized
 	gf8_idx msg_sz = gf8_poly_get_size(raw);
 	chk_sz += GF8_SYM_SZ;
 

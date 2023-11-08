@@ -21,13 +21,14 @@ const gf16_poly rs16_G_polys[] = {
 	0x111111111111111	// 14 symbols
 };
 
-// encodes a block of up to 18 bits worth of raw data as a Reed Solomon code word
-// infers message length from provided data, doesn't verify that data length fits with the intended number of check symbols
-// TODO: might be better to have the check polynomials easily indexable by check symbol count, consider rewriting for that
+// encodes a block of up to 56 bits worth of raw data as a Reed Solomon code word
+//  infers message length from provided data, doesn't verify that data length fits
+//  with the specified number of check symbols and will truncate to the max size,
+//  discarding the most significant bits if oversized.
 gf16_poly rs16_encode(gf16_poly raw, int8_t chk_syms)
 {
 	gf16_idx chk_sz = chk_syms * GF16_SYM_SZ;
-	raw &= RS16_BLOCK_MASK >> chk_sz;
+	raw &= RS16_BLOCK_MASK >> chk_sz;	//truncate most significant bits if provided data is oversized
 	gf16_idx msg_sz = gf16_poly_get_size(raw);
 	chk_sz += GF16_SYM_SZ;
 
