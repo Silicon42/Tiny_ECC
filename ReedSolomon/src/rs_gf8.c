@@ -195,11 +195,11 @@ gf8_poly rs8_get_errata(gf8_poly recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_p
 		gf8_poly error_loc = rs8_get_error_locator(e_eval, chk_sz);	// may be smaller than chk_sz but under most conditions this is correct
 		int8_t error_loc_order = gf8_poly_get_order(error_loc);
 		if (2 * error_loc_order > chk_syms - erase_cnt)	// check that the number of errors isn't beyond the Singleton Bound
-			return -2;	// TODO: more diagnostic information should be encoded here and below
+			return 020000000000 | error_loc;
 		int8_t error_pos = rs8_get_error_pos(error_loc, tx_pos & (~e_pos));
 		int8_t error_cnt = __builtin_popcount(error_pos);
 		if (error_cnt != error_loc_order)
-			return -3;	// not enough or too many roots
+			return 030000000000 | error_pos;	// not enough or too many roots
 
 		// combine the error and erasure position, locator, and evaluator to the errata versions of themselves
 		e_pos |= error_pos;

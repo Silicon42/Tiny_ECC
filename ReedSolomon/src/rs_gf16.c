@@ -203,11 +203,11 @@ gf16_poly rs16_get_errata(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_
 		gf16_poly error_loc = rs16_get_error_locator(e_eval, chk_sz);	// may be smaller than chk_sz but under most conditions this is correct
 		int8_t error_loc_order = gf16_poly_get_order(error_loc);
 		if (2 * error_loc_order > chk_syms - erase_cnt)	// check that the number of errors isn't beyond the Singleton Bound
-			return -2;	// TODO: more diagnostic information should be encoded here and below
+			return 0xE000000000000000 | error_loc;
 		int16_t error_pos = rs16_get_error_pos(error_loc, tx_pos & (~e_pos));
 		int8_t error_cnt = __builtin_popcount(error_pos);
 		if (error_cnt != error_loc_order)
-			return -3;	// not enough or too many roots
+			return 0xF000000000000000 | error_pos;	// not enough or too many roots
 
 		// combine the error and erasure position, locator, and evaluator to the errata versions of themselves
 		e_pos |= error_pos;
