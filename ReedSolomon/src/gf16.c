@@ -15,8 +15,8 @@ const gf16_elem gf16_exp[GF16_EXP_ENTRIES] = {	// length not a multiple of 2 so 
 	0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9,
 	0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
-const gf16_elem gf16_log[1 + GF16_MAX] = {	// log_0 undefined so dummy 0xFF included to simplify indexing
-	0xFF, 0x0, 0x1, 0x4, 0x2, 0x8, 0x5, 0xA, 0x3, 0xE, 0x9, 0x7, 0x6, 0xD, 0xB, 0xC};
+const gf16_elem gf16_log[1 + GF16_MAX] = {	// log_0 undefined so dummy -1 included to simplify indexing
+	-1, 0x0, 0x1, 0x4, 0x2, 0x8, 0x5, 0xA, 0x3, 0xE, 0x9, 0x7, 0x6, 0xD, 0xB, 0xC};
 
 // simplified galois field multiply by 2 used for generating the Look Up Tables
 gf16_elem gf16_mul2_noLUT(gf16_elem x)
@@ -89,11 +89,10 @@ gf16_poly gf16_poly_scale(gf16_poly p, gf16_elem x)
 	return gf16_poly_reduce(r0, of);
 }
 
-// FIXME: This is not enough terms for full GF(16) polynomials, it needs to be increased and
-//  maybe converted to a loop
-// Assumes that result can never be longer than 10 terms, and the shorter polynomial is in q
-//  currently assuming the second multiplier is no more than 5 terms, this is just enough for
-//  Reed Solomon with a max of 6 check symbols with specific optimizations
+// TODO: consider converting to a loop
+// Assumes that result can never be longer than 15 terms, and the shorter polynomial is in q
+//  currently assuming the second multiplier is no more than 13 terms, this is just enough for
+//  Reed Solomon with a max of 14 check symbols with specific optimizations
 gf16_poly gf16_poly_mul(gf16_poly p, gf16_poly q)
 {
 	gf16_poly r0, r1, r2, r3, of;
@@ -127,6 +126,41 @@ gf16_poly gf16_poly_mul(gf16_poly p, gf16_poly q)
 	r1 ^= (q & 0x200000) * p;
 	r2 ^= (q & 0x400000) * p;
 	r3 ^= (q & 0x800000) * p;
+	// term 6
+	r0 ^= (q & 0x1000000) * p;
+	r1 ^= (q & 0x2000000) * p;
+	r2 ^= (q & 0x4000000) * p;
+	r3 ^= (q & 0x8000000) * p;
+	// term 7
+	r0 ^= (q & 0x10000000) * p;
+	r1 ^= (q & 0x20000000) * p;
+	r2 ^= (q & 0x40000000) * p;
+	r3 ^= (q & 0x80000000) * p;
+	// term 8
+	r0 ^= (q & 0x100000000) * p;
+	r1 ^= (q & 0x200000000) * p;
+	r2 ^= (q & 0x400000000) * p;
+	r3 ^= (q & 0x800000000) * p;
+	// term 9
+	r0 ^= (q & 0x1000000000) * p;
+	r1 ^= (q & 0x2000000000) * p;
+	r2 ^= (q & 0x4000000000) * p;
+	r3 ^= (q & 0x8000000000) * p;
+	// term 10
+	r0 ^= (q & 0x10000000000) * p;
+	r1 ^= (q & 0x20000000000) * p;
+	r2 ^= (q & 0x40000000000) * p;
+	r3 ^= (q & 0x80000000000) * p;
+	// term 11
+	r0 ^= (q & 0x100000000000) * p;
+	r1 ^= (q & 0x200000000000) * p;
+	r2 ^= (q & 0x400000000000) * p;
+	r3 ^= (q & 0x800000000000) * p;
+	// term 12
+	r0 ^= (q & 0x1000000000000) * p;
+	r1 ^= (q & 0x2000000000000) * p;
+	r2 ^= (q & 0x4000000000000) * p;
+	r3 ^= (q & 0x8000000000000) * p;
 
 	of = (r1 & GF16_R1_OF) ^ (r2 & GF16_R2_OF) ^ (r3 & GF16_R3_OF);
 	r0 ^= (r1 & GF16_R1_R0) ^ (r2 & GF16_R2_R0) ^ (r3 & GF16_R3_R0);

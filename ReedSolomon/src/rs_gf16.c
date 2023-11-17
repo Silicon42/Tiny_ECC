@@ -25,7 +25,7 @@ const gf16_poly rs16_G_polys[] = {
 //  infers message length from provided data, doesn't verify that data length fits
 //  with the specified number of check symbols and will truncate to the max size,
 //  discarding the most significant bits if oversized.
-gf16_poly rs16_encode(gf16_poly raw, int8_t chk_syms)
+gf16_poly rs16_encode_systematic(gf16_poly raw, int8_t chk_syms)
 {
 	gf16_idx chk_sz = chk_syms * GF16_SYM_SZ;
 	raw &= RS16_BLOCK_MASK >> chk_sz;	//truncate most significant bits if provided data is oversized
@@ -178,7 +178,7 @@ int16_t rs16_get_error_pos(gf16_poly error_loc, int16_t mask_pos)
 }
 
 // tx_pos inludes set bits for only the valid positions for errors to occur, ie not in untransmitted padding symbols
-gf16_poly rs16_decode(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_pos, int16_t tx_pos)
+gf16_poly rs16_get_errata(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_pos, int16_t tx_pos)
 {
 	int8_t erase_cnt = __builtin_popcount(e_pos);
 	if (erase_cnt > chk_syms)	// if the number of erasures is greater than the number of check symbols,
@@ -215,8 +215,10 @@ gf16_poly rs16_decode(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_
 		e_eval = rs16_get_errata_evaluator(e_eval, chk_sz, error_loc);
 	}
 
-	gf16_poly errata_mag = rs16_get_errata_magnitude(e_eval, chk_sz, e_loc, e_pos);
-	recv ^= errata_mag;
+	return rs16_get_errata_magnitude(e_eval, chk_sz, e_loc, e_pos);
+}
 
-	return recv;
+gf16_poly rs16_decode_systematic(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_pos, int16_t tx_pos)
+{
+	return (recv ^ rs16_get_errata(recv, r_sz, chk_syms, e_pos, tx_pos)) >> chk_syms*GF16_SYM_SZ;
 }

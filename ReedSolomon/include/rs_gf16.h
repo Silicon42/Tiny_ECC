@@ -7,8 +7,10 @@
 #include <stdint.h>
 #include "gf16.h"
 
-gf16_poly rs16_encode(gf16_poly raw, int8_t chk_syms);
+gf16_poly rs16_encode_systematic(gf16_poly raw, int8_t chk_syms);
 
-gf16_poly rs16_decode(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_pos, int16_t tx_pos);
+gf16_poly rs16_decode_systematic(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_pos, int16_t tx_pos);
+
+gf16_poly rs16_get_errata(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_t e_pos, int16_t tx_pos);
 
 #endif // RS_GF16_H

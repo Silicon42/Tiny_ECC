@@ -17,8 +17,8 @@
 #define GF16_EXP_ENTRIES 2 * GF16_MAX	// number of entries in the exponent table
 
 typedef int8_t gf16_idx;	// represents a polynomial term index or size in terms of bits, should always be incremented/decremented by GF16_SYM_SZ
-typedef uint8_t gf16_elem;	// a single GF(16) element, only valid in the range of 0 through 7
-typedef uint64_t gf16_poly;	// GF(16) polynomial of order no greater than 14 (15 terms) packed in a uint64,
+typedef int8_t gf16_elem;	// a single GF(16) element, only valid in the range of 0 through 7
+typedef int64_t gf16_poly;	// GF(16) polynomial of order no greater than 14 (15 terms) packed in a uint64,
 // while there is room for a 16th term, there is not for its overflow and BCH view Reed Solomon is limited to 15 anyway
 
 extern const gf16_elem gf16_exp[GF16_EXP_ENTRIES];	// length not a multiple of 2 so duplicate entries + offset needed for fast wraparound of negatives

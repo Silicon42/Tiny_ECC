@@ -7,8 +7,10 @@
 #include <stdint.h>
 #include "gf8.h"
 
-gf8_poly rs8_encode(gf8_poly raw, int8_t chk_syms);
+gf8_poly rs8_encode_systematic(gf8_poly raw, int8_t chk_syms);
 
-gf8_poly rs8_decode(gf8_poly recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_pos, int8_t tx_pos);
+gf8_poly rs8_decode_systematic(gf8_poly recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_pos, int8_t tx_pos);
+
+gf8_poly rs8_get_errata(gf8_poly recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_pos, int8_t tx_pos);
 
 #endif // RS_GF8_H

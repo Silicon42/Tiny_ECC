@@ -13,8 +13,8 @@ const gf8_elem gf8_exp[GF8_EXP_ENTRIES] = {	// length not a multiple of 2 so dup
 	1, 2, 4, 3, 6, 7, 5,
 	1, 2, 4, 3, 6, 7, 5};
 
-const gf8_elem gf8_log[8] = {	// log_0 undefined so dummy 0xFF included to simplify indexing
-	0xFF, 0, 1, 3, 2, 6, 4, 5};
+const gf8_elem gf8_log[8] = {	// log_0 undefined so dummy -1 included to simplify indexing
+	-1, 0, 1, 3, 2, 6, 4, 5};
 
 // simplified galois field multiply by 2 used for generating the Look Up Tables
 gf8_elem gf8_mul2_noLUT(gf8_elem x)

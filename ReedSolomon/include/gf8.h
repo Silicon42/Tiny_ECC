@@ -17,8 +17,8 @@
 #define GF8_EXP_ENTRIES 2 * GF8_MAX // number of entries in the exponent table
 
 typedef int8_t gf8_idx;		// represents a polynomial term index or size in terms of bits, should always be incremented/decremented by GF8_SYM_SZ
-typedef uint8_t gf8_elem;	// a single GF(8) element, only valid in the range of 0 through 7
-typedef uint32_t gf8_poly;	// GF(8) polynomial of order no greater than 9 (10 terms) packed in a uint32
+typedef int8_t gf8_elem;	// a single GF(8) element, only valid in the range of 0 through 7
+typedef int32_t gf8_poly;	// GF(8) polynomial of order no greater than 9 (10 terms) packed in a uint32
 
 extern const gf8_elem gf8_exp[GF8_EXP_ENTRIES];	// length not a multiple of 2 so duplicate entries + offset needed for fast wraparound of negatives
 extern const gf8_elem gf8_log[1 + GF8_MAX];		// log_0 undefined so dummy 0xFF included to simplify indexing
