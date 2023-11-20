@@ -13,6 +13,8 @@ const gf8_elem gf8_exp[GF8_EXP_ENTRIES] = {	// length not a multiple of 2 so dup
 	1, 2, 4, 3, 6, 7, 5,
 	1, 2, 4, 3, 6, 7, 5};
 
+const gf8_elem* gf8_exp_div = gf8_exp + GF8_MAX;
+
 const gf8_elem gf8_log[8] = {	// log_0 undefined so dummy -1 included to simplify indexing
 	-1, 0, 1, 3, 2, 6, 4, 5};
 
@@ -33,7 +35,7 @@ gf8_elem gf8_div(gf8_elem a, gf8_elem b)
 	if (a == 0)
 		return 0;
 
-	return gf8_exp[gf8_log[a] - gf8_log[b] + GF8_MAX];	// +GF8_MAX offset to keep range positive
+	return gf8_exp_div[gf8_log[a] - gf8_log[b]];	// negative indices are valid in C so long as there's valid data there
 }
 
 gf8_elem gf8_mul(gf8_elem a, gf8_elem b)
@@ -50,7 +52,7 @@ gf8_elem gf8_pow(gf8_elem x, int8_t power)
 }
 
 // slight optimization since most calls use x = 2 which evaluates to 1
-// power is assumed to be in the range of 0 to 13
+// power is assumed to be in the range of 0 to GF8_EXP_ENTRIES -1
 gf8_elem gf8_2pow(int8_t power)
 {
 	return gf8_exp[power];
@@ -58,7 +60,7 @@ gf8_elem gf8_2pow(int8_t power)
 
 gf8_elem gf8_inverse(gf8_elem x)
 {
-	return gf8_exp[GF8_MAX - gf8_log[x]];
+	return gf8_exp_div[-gf8_log[x]];	// negative indices are valid in C so long as there's valid data there
 }
 
 // prior to reduction, term can extend up to 2 bits above symbol due to shifting

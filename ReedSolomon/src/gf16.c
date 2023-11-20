@@ -15,6 +15,8 @@ const gf16_elem gf16_exp[GF16_EXP_ENTRIES] = {	// length not a multiple of 2 so 
 	0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9,
 	0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
+const gf16_elem* gf16_exp_div = gf16_exp + GF16_MAX;
+
 const gf16_elem gf16_log[1 + GF16_MAX] = {	// log_0 undefined so dummy -1 included to simplify indexing
 	-1, 0x0, 0x1, 0x4, 0x2, 0x8, 0x5, 0xA, 0x3, 0xE, 0x9, 0x7, 0x6, 0xD, 0xB, 0xC};
 
@@ -35,7 +37,7 @@ gf16_elem gf16_div(gf16_elem a, gf16_elem b)
 	if (a == 0)
 		return 0;
 
-	return gf16_exp[gf16_log[a] - gf16_log[b] + GF16_MAX];	// +GF16_MAX offset to keep range positive
+	return gf16_exp_div[gf16_log[a] - gf16_log[b]];	// negative indices are valid in C so long as there's valid data there
 }
 
 gf16_elem gf16_mul(gf16_elem a, gf16_elem b)
@@ -60,7 +62,7 @@ gf16_elem gf16_2pow(int8_t power)
 
 gf16_elem gf16_inverse(gf16_elem x)
 {
-	return gf16_exp[GF16_MAX - gf16_log[x]];
+	return gf16_exp_div[-gf16_log[x]];	// negative indices are valid in C so long as there's valid data there
 }
 
 // prior to reduction, term can extend up to 2 bits above symbol due to shifting
