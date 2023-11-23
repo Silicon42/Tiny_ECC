@@ -67,7 +67,7 @@ gf8_poly rs8_get_errata_evaluator(gf8_poly synd, gf8_idx chk_sz, gf8_poly errata
 {
 	// term 0 of errata_loc is always 1 and no more than 5 terms beyond that are needed
 	gf8_poly errata_eval = gf8_poly_mul_q0_monic(synd, errata_loc);
-	errata_eval &= ~((gf8_poly)-1 << chk_sz);	// mask to the appropriate size
+	errata_eval &= (1LL << chk_sz) - 1;	// mask to the appropriate size
 	return errata_eval;
 }
 

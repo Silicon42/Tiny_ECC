@@ -28,7 +28,7 @@ int main()
 
 		printf("\n");
 		//2 check symbols, 4 data symbols
-		r = rs8_encode(01117, 0132, 9);
+		r = rs8_encode_systematic(01117, 0132, 9);
 		printf("%o\n", r);  //result 11735
 
 		printf("\n");
@@ -55,7 +55,7 @@ int main()
 
 		printf("\n");
 		//6 check symbols, 1 data symbol
-		r = rs8_encode(01, 01576342, 21);
+		r = rs8_encode_systematic(01, 01576342, 21);
 		printf("%o\n", r);  //result 1576342
 
 		//6 check symbols, 4 erasures
@@ -73,39 +73,39 @@ int main()
 	*/
 
 	// 4 check symbols, 3 data symbols
-	r = rs8_encode(0123, 4);
+	r = rs8_encode_systematic(0123, 4);
 	printf("%o\n", r); // result 1230013
 
 	// 4 check symbols, 2 errors
-	r = rs8_decode(030013, 21, 4, 0, 0x7F);
+	r = rs8_decode_systematic(030013, 21, 4, 0, 0x7F);
 	printf("%o\n", r); // result 1230013
 
 	// 4 check symbols, 2 erasures
-	r = rs8_decode(030013, 21, 4, 0b1100000, 0x7F);
+	r = rs8_decode_systematic(030013, 21, 4, 0b1100000, 0x7F);
 	printf("%o\n", r); // result 1230013
 
 	// 4 check symbols, 3 erasures
-	r = rs8_decode(00013, 21, 4, 0b1110000, 0x7F);
+	r = rs8_decode_systematic(00013, 21, 4, 0b1110000, 0x7F);
 	printf("%o\n", r); // result 1230013
 
 	// 4 check symbols, 4 erasures
-	r = rs8_decode(01013, 21, 4, 0b1111000, 0x7F);
+	r = rs8_decode_systematic(01013, 21, 4, 0b1111000, 0x7F);
 	printf("%o\n", r); // result 1230013
 
 	// 4 check symbols, 2 erasures, 1 error
-	r = rs8_decode(00013, 21, 4, 0b1100000, 0x7F);
+	r = rs8_decode_systematic(00013, 21, 4, 0b1100000, 0x7F);
 	printf("%o\n", r); // result 1230013
 
 	// 4 check symbols, no errata
-	r = rs8_decode(01230013, 21, 4, 0, 0x7F);
+	r = rs8_decode_systematic(01230013, 21, 4, 0, 0x7F);
 	printf("%o\n", r); // result 1230013
 
 	// 4 check symbols, 3 erasures, 1 error
-	r = rs8_decode(01013, 21, 4, 0b1110000, 0x7F);
+	r = rs8_decode_systematic(01013, 21, 4, 0b1110000, 0x7F);
 	printf("%o\n", r); // result failure to decode
 
 	// 4 check symbols, 3 errorss
-	r = rs8_decode(00013, 21, 4, 0, 0x7F);
+	r = rs8_decode_systematic(00013, 21, 4, 0, 0x7F);
 	printf("%o\n", r); // result incorrect decode
 
 	return 0;

@@ -75,7 +75,7 @@ gf16_poly rs16_get_errata_evaluator(gf16_poly synd, gf16_idx chk_sz, gf16_poly e
 {
 	// term 0 of errata_loc is always 1 and no more than 5 terms beyond that are needed
 	gf16_poly errata_eval = gf16_poly_mul_q0_monic(synd, errata_loc);
-	errata_eval &= ~((gf16_poly)-1 << chk_sz);	// mask to the appropriate size
+	errata_eval &= (1LL << chk_sz) - 1;	// mask to the appropriate size
 	return errata_eval;
 }
 
