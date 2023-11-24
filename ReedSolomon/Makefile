@@ -4,17 +4,17 @@ MAKEFLAGS += --no-builtin-rules  #black magic removal
 # get picked up unless there is a change in the .c file or until the next "make clean" is executed.
 
 
-OBJ_DIR = ./obj/
-SRC_DIR = ./src/
-INC_DIRS = ./inc/
+SRC_DIR := ./src/
+INC_DIRS := ./inc/
+OBJ_DIR := ./obj/
 # .c files in this directory have a main function in them and are thus mutually exclusive when linking
-APPS_DIR = ./apps/
+APPS_DIR := ./apps/
 
 # gets a list of all applications in the apps dir for filtering build targets
-APP_LIST = $(basename $(shell find $(APPS_DIR) -type f -printf "%f\n"))
+APP_LIST := $(basename $(shell find $(APPS_DIR) -type f -printf "%f\n"))
 
 # The name of the executable to build -- it will end up in the working directory
-BUILD_TARGET = $(filter $(APP_LIST),$(MAKECMDGOALS))
+BUILD_TARGET := $(filter $(APP_LIST),$(MAKECMDGOALS))
 
 # Following are the search paths for prerequisites 
 vpath %.h $(INC_DIRS)	# Include file search path includes the source path  -- This should also be conveyed to the complile rule
@@ -23,7 +23,7 @@ vpath %.c $(SRC_DIR) $(APPS_DIR)
 
 # Add a prefix to INC_DIRS to add the "-I" compile flag 
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
-CPPFLAGS := $(INC_FLAGS) -MMD -MP		#-MMD and -MP generates the .d files when a .c file is compiled
+CPPFLAGS := $(INC_FLAGS) -MMD -MP #-MMD and -MP generates the .d files when a .c file is compiled
 
 # Manually entering the obj targets
 #OBJfiles := sub.o main.o	
@@ -36,28 +36,29 @@ TARGET_OBJ := $(subst $(APPS_DIR),$(OBJ_DIR),$(TARGET_SRC:.c=.o))
 
 APP_SOURCES := $(shell find $(APPS_DIR) -name "*.c")
 APP_OBJECTS := $(subst $(APPS_DIR),$(OBJ_DIR),$(APP_SOURCES:.c=.o))
+APP_DEPS := $(APP_OBJECTS:.o=.d)	# there might be a way to trick around with picking up executable object dependencies but how do you first generate them?
 
 SOURCES := $(shell find $(SRC_DIR) -name "*.c")
 OBJECTS := $(subst $(SRC_DIR),$(OBJ_DIR),$(SOURCES:.c=.o))
 
 # String substitution (suffix version without %).
 # As an example, ./build/hello.cpp.o turns into ./build/hello.cpp.d
-DEPS := $(OBJECTS:.o=.d) $(TARGET_OBJ:.o=.d)
+DEPS := $(OBJECTS:.o=.d) $(APP_DEPS)
 
 #####   First Target -- This is what gets built by default #####
+.PHONY: all
+all: $(OBJECTS) $(APP_OBJECTS)
+	@echo compiled all objects
+
 $(BUILD_TARGET) :$(OBJECTS) $(TARGET_OBJ)	# This will drive the creation of the .o files in the OBJdir for the prerequisites 
 	@#echo "$@ link rule"
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-# the compile rule for the prerequisits of the final target -- 
+# the compile rule for the prerequisites of the final target -- 
 $(OBJ_DIR)%.o : %.c				# pattern rule picks up the .c as a pre-req for a .o
 	@#echo "MY pattern rule .c to .o via OBJ_DIR"
 	@mkdir -p '$(@D)'
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
-
-.PHONY: all
-all: $(OBJECTS) $(APP_OBJECTS)
-	@echo compiled all objects
 
 .PHONY: clean
 clean:
