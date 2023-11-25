@@ -1,8 +1,8 @@
-MAKEFLAGS += --no-builtin-rules  #black magic removal
+#MAKEFLAGS += --no-builtin-rules  #black magic removal
 # Note: 
 # If the .d (dependency) files are manually removed the dependencies for include files will not
 # get picked up unless there is a change in the .c file or until the next "make clean" is executed.
-
+CFLAGS += -g -O0 -Wall -Wextra -Werror
 
 SRC_DIR := ./src/
 INC_DIRS := ./inc/

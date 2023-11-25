@@ -179,7 +179,7 @@ gf8_poly rs8_get_errata(gf8_poly recv, gf8_idx r_sz, int8_t chk_syms, int8_t e_p
 	gf8_poly e_eval = rs8_get_syndromes(recv, r_sz, chk_syms);
 
 	if (e_eval == 0)	// no errors
-		return recv;
+		return 0;
 
 	gf8_idx chk_sz = chk_syms * GF8_SYM_SZ;
 	gf8_poly e_loc = 1;

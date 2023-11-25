@@ -187,7 +187,7 @@ gf16_poly rs16_get_errata(gf16_poly recv, gf16_idx r_sz, int8_t chk_syms, int16_
 	gf16_poly e_eval = rs16_get_syndromes(recv, r_sz, chk_syms);
 
 	if (e_eval == 0) // no errors
-		return recv;
+		return 0;
 
 	gf16_idx chk_sz = chk_syms * GF16_SYM_SZ;
 	gf16_poly e_loc = 1;
